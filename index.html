@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Guitar Compass">
+<meta name="theme-color" content="#04040c">
+<link rel="manifest" href="manifest.json">
+<title>GUITAR COMPASS</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#04040c;overflow-x:hidden;}#root{min-height:100vh;}@keyframes beatFill{0%{width:0%}99%{width:100%}100%{width:0%}}</style>
+</head>
+<body><div id="root"></div>
+<script>
+(function(){
+  function loadScript(url, cb){
+    var key = 'gc_script_' + url.split('/').pop();
+    try {
+      var cached = localStorage.getItem(key);
+      if(cached){ var s=document.createElement('script');s.text=cached;document.head.appendChild(s);cb();return; }
+    } catch(e){}
+    var s = document.createElement('script');
+    s.src = url;
+    s.onload = function(){
+      try {
+        fetch(url).then(function(r){return r.text();}).then(function(t){
+          try{ localStorage.setItem(key, t); }catch(e){}
+        });
+      } catch(e){}
+      cb();
+    };
+    s.onerror = function(){ cb(); };
+    document.head.appendChild(s);
+  }
+  window._gcReady = false;
+  loadScript('https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js', function(){
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js', function(){
+      window._gcReady = true;
+      document.dispatchEvent(new Event('gc:ready'));
+    });
+  });
+})();
+</script>
+<script>
+function _initApp(){
+var useState=React.useState;var useEffect=React.useEffect;var useRef=React.useRef;
+var _manQual='maj';
+
+const NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTE_FR={C:'Do','C#':'Do#',D:'Re','D#':'Re#',E:'Mi',F:'Fa','F#':'Fa#',G:'Sol','G#':'Sol#',A:'La','A#':'La#',B:'Si'};
+const OPEN_S=[4,11,7,2,9,4];
+const S_MIDI=[64,59,55,50,45,40];
+
+const QUAL={
+  maj:{s:'',name:'Major',nameFr:'Majeur',vibe:'Bright',vibeFr:'Lumineux',mood:'Happy, triumphant',moodFr:'Heureux, triomphant'},
+  min:{s:'m',name:'Minor',nameFr:'Mineur',vibe:'Dark',vibeFr:'Sombre',mood:'Sad, emotional',moodFr:'Melancolique, emotionnel'},
+  '7':{s:'7',name:'Dom 7',nameFr:'Dom 7',vibe:'Blues tension',vibeFr:'Tension blues',mood:'Bluesy, restless',moodFr:'Blues, agite'},
+  maj7:{s:'maj7',name:'Major 7',nameFr:'Maj 7',vibe:'Smooth',vibeFr:'Doux',mood:'Dreamy, jazz',moodFr:'Reveur, jazz'},
+  min7:{s:'m7',name:'Minor 7',nameFr:'Min 7',vibe:'Mellow',vibeFr:'Introspectif',mood:'Soft, introspective',moodFr:'Doux, interieur'}
+};
+
+const SCALES={
+  'Minor Pentatonic':[0,3,5,7,10],
+  'Major Pentatonic':[0,2,4,7,9],
+  'Natural Minor':[0,2,3,5,7,8,10],
+  'Major':[0,2,4,5,7,9,11],
+  'Dorian':[0,2,3,5,7,9,10],
+  'Blues Scale':[0,3,5,6,7,10]
+};
+
+const DL={0:'R',1:'b2',2:'2',3:'b3',4:'3',5:'4',6:'b5',7:'5',8:'b6',9:'6',10:'b7',11:'7'};
+
+const SG={
+  blues:{scale:'Blues Scale',tip:'Bend the b3 toward the 3 - slow bends say more than fast runs.',tipFr:'Bendes la b3 vers la 3 - les bends lents disent plus que les runs rapides.',sweet:'b3, 4, b7',sweetFr:'b3, 4, b7',avoid:'Major 7th',avoidFr:'Septieme majeure'},
+  pop:{scale:'Major Pentatonic',tip:'Stay singable - root, 3rd and 5th always sound strong. Climb up then resolve back down.',tipFr:'Restez chantable - fondamentale, tierce et quinte sonnent toujours bien. Montez puis redescendez.',sweet:'Root, 3rd, 5th',sweetFr:'Fond., Tierce, Quinte',avoid:'Minor 7th',avoidFr:'Septieme mineure'},
+  jazz:{scale:'Dorian',tip:'Land on chord tones on beat 1, walk between changes. Leave space.',tipFr:'Posez sur les notes d accord sur le temps 1. Laissez du silence.',sweet:'3rd, 7th, 9th',sweetFr:'Tierce, Septieme, Neuvieme',avoid:'Playing outside',avoidFr:'Jouer hors des accords'},
+  bossa:{scale:'Major Pentatonic',tip:'Sparse and smooth - let every note breathe.',tipFr:'Epure et doux - laissez chaque note respirer.',sweet:'Root, 5th, 6th',sweetFr:'Fond., Quinte, Sixte',avoid:'Heavy bends',avoidFr:'Bends forts'},
+  rock:{scale:'Minor Pentatonic',tip:'Power runs, strong vibrato on landing notes.',tipFr:'Runs puissants, vibrato fort sur les notes d arrivee.',sweet:'b3, 5th, b7',sweetFr:'b3, Quinte, b7',avoid:'Too clean',avoidFr:'Trop propre'},
+  funk:{scale:'Minor Pentatonic',tip:'Short sharp stabs - silence is the melody. Lock to groove.',tipFr:'Courtes attaques nettes - le silence est la melodie.',sweet:'Root, 4th, b7',sweetFr:'Fond., Quarte, b7',avoid:'Long legato',avoidFr:'Longues lignes liees'},
+  soul:{scale:'Major Pentatonic',tip:'Sing through the guitar - long notes, emotional vibrato.',tipFr:'Chantez a travers la guitare - notes longues, vibrato emotionnel.',sweet:'Root, 3rd, 6th',sweetFr:'Fond., Tierce, Sixte',avoid:'Too many notes',avoidFr:'Trop de notes'},
+  reggae:{scale:'Minor Pentatonic',tip:'Skank on the off-beat, leave space between notes.',tipFr:'Jouez sur les contre-temps, laissez de l espace.',sweet:'Root, 4th, 5th',sweetFr:'Fond., Quarte, Quinte',avoid:'Busy playing',avoidFr:'Jeu trop charge'},
+  country:{scale:'Major Pentatonic',tip:'Chicken picking, string bends, sweet melodic licks.',tipFr:'Chicken picking, bends, licks melodiques doux.',sweet:'Root, 2nd, 3rd, 5th',sweetFr:'Fond., Seconde, Tierce, Quinte',avoid:'Minor sound',avoidFr:'Sonnorite mineure'},
+  folk:{scale:'Major',tip:'Melodic and vocal. Arpeggiate chords, simple stepwise runs.',tipFr:'Melodique et vocal. Arpegez les accords, runs diatoniques.',sweet:'Root, 2nd, 3rd, 5th',sweetFr:'Fond., Seconde, Tierce, Quinte',avoid:'Heavy distortion',avoidFr:'Distorsion forte'},
+  classic:{scale:'Minor Pentatonic',tip:'Big bends, wailing vibrato, rock attitude. Play with feeling.',tipFr:'Grands bends, vibrato plaintif, attitude rock. Jouez avec feeling.',sweet:'b3, 5th, b7',sweetFr:'b3, Quinte, b7',avoid:'Playing too clean',avoidFr:'Jouer trop propre'}
+};
+
+const ARTISTS=[
+  {id:'mayer',name:'Mayer',full:'John Mayer',scale:'Minor Pentatonic',feel:'Blues-rock with soul',homeKeys:['E','A','G'],technique:'Mix minor and major pentatonic.',color:'#F59E0B'},
+  {id:'knopfler',name:'Knopfler',full:'Mark Knopfler',scale:'Minor Pentatonic',feel:'Fingerpicked melodic rock',homeKeys:['G','D','A'],technique:'Fingerpick, space notes, let ring.',color:'#34D399'},
+  {id:'santana',name:'Santana',full:'Carlos Santana',scale:'Minor Pentatonic',feel:'Latin rock fire',homeKeys:['Am','Dm','Em'],technique:'Heavy vibrato, fluid legato.',color:'#F87171'},
+  {id:'clapton',name:'Clapton',full:'Eric Clapton',scale:'Minor Pentatonic',feel:'Refined blues rock',homeKeys:['E','A','G'],technique:'Slow bends, vocal phrasing.',color:'#A78BFA'},
+  {id:'dire',name:'Dire Straits',full:'Mark Knopfler / Dire Straits',scale:'Minor Pentatonic',feel:'Melodic fingerpicked rock',homeKeys:['D','G','A'],technique:'Fingerpicking, telegraph phrasing.',color:'#60A5FA'},
+  {id:'floyd',name:'Pink Floyd',full:'David Gilmour',scale:'Minor Pentatonic',feel:'Atmospheric cinematic',homeKeys:['G','D','Bm'],technique:'Long bends, whammy, minimalism.',color:'#C084FC'},
+  {id:'bowie',name:'Bowie',full:'David Bowie',scale:'Minor Pentatonic',feel:'Glam rock attitude',homeKeys:['E','A','D'],technique:'Bold chord stabs, glam riffs.',color:'#F472B6'},
+  {id:'prince',name:'Prince',full:'Prince',scale:'Minor Pentatonic',feel:'Funk meets rock fire',homeKeys:['Dm','Am','Gm'],technique:'Rapid flurries, whammy dives.',color:'#E879F9'},
+  {id:'stapleton',name:'Stapleton',full:'Chris Stapleton',scale:'Minor Pentatonic',feel:'Raw Southern soul',homeKeys:['G','D','A'],technique:'Raw bends, gritty tone.',color:'#FB923C'},
+  {id:'marley',name:'Marley',full:'Bob Marley',scale:'Major Pentatonic',feel:'Roots reggae groove',homeKeys:['A','D','G'],technique:'Chop rhythm, melodic fills.',color:'#86EFAC'}
+];
+
+const PAT={
+  blues:[
+    {name:'12-Bar Blues',nameFr:'Blues 12 mesures',desc:'The foundation of all blues and rock.',descFr:'La base de tout le blues et du rock.',num:['I','IV','I','I','IV','IV','I','I','V','IV','I','V'],short:['I','IV','V'],bpm:80},
+    {name:'I-IV-V Turnaround',nameFr:'Turnaround I-IV-V',desc:'Classic 3-chord blues foundation.',descFr:'Classique blues 3 accords.',num:['I','IV','V','IV'],short:['I','IV','V'],bpm:90},
+    {name:'Minor Blues',nameFr:'Blues mineur',desc:'Darker, more emotional blues feel.',descFr:'Blues plus sombre et emotionnel.',num:['i','iv','i','V'],short:['i','iv','V'],bpm:70}
+  ],
+  pop:[
+    {name:'I-V-vi-IV',nameFr:'I-V-vi-IV',desc:'Axis progression - hundreds of hit songs.',descFr:'La progression des hits - des centaines de chansons.',num:['I','V','vi','IV'],short:['I','V','vi','IV'],bpm:100},
+    {name:'vi-IV-I-V',nameFr:'vi-IV-I-V',desc:'Same chords, emotional minor start.',descFr:'Memes accords, depart mineur emotionnel.',num:['vi','IV','I','V'],short:['vi','IV','I','V'],bpm:100},
+    {name:'I-IV-V',nameFr:'I-IV-V',desc:'Three-chord pop and rock classic.',descFr:'Classique pop et rock 3 accords.',num:['I','IV','V'],short:['I','IV','V'],bpm:110}
+  ],
+  rock:[
+    {name:'I-bVII-IV',nameFr:'I-bVII-IV',desc:'Classic rock power - Hendrix, Zeppelin.',descFr:'Rock classique - Hendrix, Zeppelin.',num:['I','bVII','IV'],short:['I','bVII','IV'],bpm:120},
+    {name:'i-VII-VI-VII',nameFr:'i-VII-VI-VII',desc:'Dark rock minor progression.',descFr:'Progression rock sombre en mineur.',num:['i','VII','VI','VII'],short:['i','VII','VI'],bpm:130},
+    {name:'I-V-vi-IV',nameFr:'I-V-vi-IV',desc:'Pop-rock crossover anthem.',descFr:'Anthem pop-rock crossover.',num:['I','V','vi','IV'],short:['I','V','vi','IV'],bpm:120}
+  ],
+  jazz:[
+    {name:'ii-V-I',nameFr:'ii-V-I',desc:'The most important jazz progression.',descFr:'La progression jazz la plus importante.',num:['ii','V','I'],short:['ii','V','I'],bpm:140},
+    {name:'I-vi-ii-V',nameFr:'I-vi-ii-V',desc:'Jazz turnaround, endlessly repeatable.',descFr:'Turnaround jazz, infiniment repetable.',num:['I','vi','ii','V'],short:['I','vi','ii','V'],bpm:130},
+    {name:'iii-VI-ii-V',nameFr:'iii-VI-ii-V',desc:'Bird changes, advanced bebop.',descFr:'Bird changes, bebop avance.',num:['iii','VI','ii','V'],short:['iii','VI','ii','V'],bpm:150}
+  ],
+  bossa:[
+    {name:'I-vi-II-V',nameFr:'I-vi-II-V',desc:'Bossa nova standard feel.',descFr:'Feel standard bossa nova.',num:['Imaj7','vi7','II7','V7'],short:['I','vi','II','V'],bpm:90},
+    {name:'ii-V-I',nameFr:'ii-V-I',desc:'Smooth jazz-bossa foundation.',descFr:'Base jazz-bossa douce.',num:['ii7','V7','Imaj7'],short:['ii','V','I'],bpm:85}
+  ],
+  funk:[
+    {name:'I-IV',nameFr:'I-IV',desc:'Tight two-chord funk groove.',descFr:'Groove funk serre 2 accords.',num:['I','IV'],short:['I','IV'],bpm:105},
+    {name:'i-IV',nameFr:'i-IV',desc:'Minor funk - James Brown territory.',descFr:'Funk mineur - territoire James Brown.',num:['i','IV'],short:['i','IV'],bpm:100},
+    {name:'I-bIII-IV',nameFr:'I-bIII-IV',desc:'Funky gospel feel.',descFr:'Feel gospel funky.',num:['I','bIII','IV'],short:['I','bIII','IV'],bpm:108}
+  ],
+  soul:[
+    {name:'I-IV-I-V',nameFr:'I-IV-I-V',desc:'Classic soul gospel changes.',descFr:'Changements soul gospel classiques.',num:['I','IV','I','V'],short:['I','IV','V'],bpm:85},
+    {name:'ii-V-I',nameFr:'ii-V-I',desc:'Smooth soul progression.',descFr:'Progression soul douce.',num:['ii','V','I'],short:['ii','V','I'],bpm:80},
+    {name:'I-vi-IV-V',nameFr:'I-vi-IV-V',desc:'Doo-wop soul classic.',descFr:'Classique doo-wop soul.',num:['I','vi','IV','V'],short:['I','vi','IV','V'],bpm:90}
+  ],
+  reggae:[
+    {name:'i-VII-VI-VII',nameFr:'i-VII-VI-VII',desc:'Roots reggae minor groove.',descFr:'Groove reggae roots mineur.',num:['i','VII','VI','VII'],short:['i','VII','VI'],bpm:75},
+    {name:'I-IV',nameFr:'I-IV',desc:'Skank two-chord reggae.',descFr:'Reggae skank 2 accords.',num:['I','IV'],short:['I','IV'],bpm:72}
+  ],
+  folk:[
+    {name:'I-IV-V',nameFr:'I-IV-V',desc:'Folk traditional three-chord song.',descFr:'Chanson folk traditionnelle 3 accords.',num:['I','IV','V'],short:['I','IV','V'],bpm:95},
+    {name:'I-V-vi-IV',nameFr:'I-V-vi-IV',desc:'Modern folk singer-songwriter.',descFr:'Folk moderne singer-songwriter.',num:['I','V','vi','IV'],short:['I','V','vi','IV'],bpm:90},
+    {name:'I-IV-I-V',nameFr:'I-IV-I-V',desc:'Acoustic fingerpicking staple.',descFr:'Classique fingerpicking acoustique.',num:['I','IV','I','V'],short:['I','IV','V'],bpm:85}
+  ],
+  country:[
+    {name:'I-IV-V',nameFr:'I-IV-V',desc:'Country three-chord tradition.',descFr:'Tradition country 3 accords.',num:['I','IV','V'],short:['I','IV','V'],bpm:115},
+    {name:'I-V-vi-IV',nameFr:'I-V-vi-IV',desc:'Modern country pop crossover.',descFr:'Country pop moderne.',num:['I','V','vi','IV'],short:['I','V','vi','IV'],bpm:120}
+  ],
+  classic:[
+    {name:'I-V-vi-IV',nameFr:'I-V-vi-IV',desc:'Classic rock anthem formula.',descFr:'Formule anthem rock classique.',num:['I','V','vi','IV'],short:['I','V','vi','IV'],bpm:125},
+    {name:'i-VI-III-VII',nameFr:'i-VI-III-VII',desc:'Epic minor rock progression.',descFr:'Progression rock mineur epique.',num:['i','VI','III','VII'],short:['i','VI','III','VII'],bpm:130}
+  ]
+};
+
+const CAGED_MAP={E:{color:'#38BDF8',window:4},A:{color:'#A78BFA',window:4},G:{color:'#F59E0B',window:4},C:{color:'#34D399',window:4},D:{color:'#F87171',window:4}};
+
+function getRF(root){
+  var m={C:8,'C#':9,D:10,'D#':11,E:0,F:1,'F#':2,G:3,'G#':4,A:5,'A#':6,B:7};
+  return m[root]!==undefined?m[root]:0;
+}
+
+function getCAGED(root){
+  var f=getRF(root);
+  var shapes=[{f:0,s:'E'},{f:2,s:'D'},{f:3,s:'C'},{f:5,s:'A'},{f:7,s:'G'},{f:8,s:'E'},{f:10,s:'C'},{f:12,s:'E'}];
+  var best=shapes.reduce(function(b,sh){return Math.abs(sh.f-f)<Math.abs(b.f-f)?sh:b;},shapes[0]);
+  var color=CAGED_MAP[best.s]?CAGED_MAP[best.s].color:'#A78BFA';
+  return {shape:best.s,color:color,windowStart:f,windowEnd:f+3};
+}
+
+function getFretWindow(root){return getRF(root);}
+
+var FLAT_KEYS=['F','A#','D#','G#','C#','F#','B'];
+var SHARP_KEYS=['G','D','A','E','B','F#','C#'];
+var ENH_FLAT={'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb'};
+var ENH_SHARP={'Db':'C#','Eb':'D#','Gb':'F#','Ab':'G#','Bb':'A#'};
+
+function enhNote(note,key){
+  if(!note||!key)return note;
+  var useFlats=FLAT_KEYS.indexOf(key)>=0;
+  if(useFlats&&ENH_FLAT[note])return ENH_FLAT[note];
+  if(!useFlats&&ENH_SHARP[note])return ENH_SHARP[note];
+  return note;
+}
+
+function dnKey(note,lang,key){var n=enhNote(note,key);return dn(n,lang,true);}
+
+function dn(note,lang,compact){
+  if(!note)return note;
+  if(lang!=='fr')return note;
+  var fr=NOTE_FR[note]||note;
+  if(compact)return fr;
+  return fr+' ('+note+')';
+}
+
+function n2note(numeral,key){
+  if(!numeral||!key)return null;
+  var ki=NOTES.indexOf(key);
+  if(ki<0)return null;
+  var map={'I':0,'II':2,'III':4,'IV':5,'V':7,'VI':9,'VII':11,'i':0,'ii':2,'iii':4,'iv':5,'v':7,'vi':9,'vii':11,'bII':1,'bIII':3,'bVII':10,'bVI':8,'bV':6,'#IV':6};
+  var clean=numeral.replace(/7|maj7|min7|m7/g,'');
+  var interval=map[clean];
+  if(interval===undefined)return null;
+  return NOTES[(ki+interval)%12];
+}
+
+function getCtones(root,quality){
+  var ri=NOTES.indexOf(root);if(ri<0)return [];
+  var intervals={maj:[0,4,7],min:[0,3,7],'7':[0,4,7,10],maj7:[0,4,7,11],min7:[0,3,7,10]};
+  var ivs=intervals[quality]||intervals.maj;
+  return ivs.map(function(iv){return NOTES[(ri+iv)%12];});
+}
+
+function getDiatonic(key){
+  var ki=NOTES.indexOf(key);if(ki<0)return [];
+  var pattern=[{interval:0,quality:'maj',numeral:'I'},{interval:2,quality:'min',numeral:'ii'},{interval:4,quality:'min',numeral:'iii'},{interval:5,quality:'maj',numeral:'IV'},{interval:7,quality:'maj',numeral:'V'},{interval:9,quality:'min',numeral:'vi'},{interval:11,quality:'min',numeral:'vii'}];
+  return pattern.map(function(p){return {root:NOTES[(ki+p.interval)%12],quality:p.quality,numeral:p.numeral};});
+}
+
+function getDiatStatus(root,qual,key){
+  var diat=getDiatonic(key);
+  var match=diat.find(function(c){return c.root===root;});
+  if(!match)return 'outside';
+  if(match.quality===qual||(match.quality==='maj'&&qual==='maj')||(match.quality==='min'&&qual==='min')||(match.quality==='min'&&qual==='min7')||(match.quality==='maj'&&qual==='maj7')){return 'diatonic';}
+  return 'borrowed';
+}
+
+function nColor(root,key){
+  var status=getDiatStatus(root,'maj',key);
+  return status==='diatonic'?'#34D399':status==='borrowed'?'#F59E0B':'#F87171';
+}
+
+function getSugg(history,style){
+  var pats=PAT[style]||PAT.pop;
+  if(!history||history.length===0){return pats.slice(0,4).map(function(p,i){return {numeral:p.num[0],pattern:p.name,score:1-i*0.15};});}
+  var last=history[history.length-1];
+  var lastNum=last.numeral||'I';
+  var suggestions=[];
+  pats.forEach(function(pat){
+    var idx=pat.num.indexOf(lastNum);
+    if(idx>=0){var next=pat.num[(idx+1)%pat.num.length];var existing=suggestions.find(function(s){return s.numeral===next;});if(existing){existing.score+=0.3;}else{suggestions.push({numeral:next,pattern:pat.name,score:0.6});}}
+  });
+  if(suggestions.length===0){suggestions=[{numeral:'IV',pattern:'Common move',score:0.5},{numeral:'V',pattern:'Tension',score:0.4},{numeral:'vi',pattern:'Relative minor',score:0.35}];}
+  suggestions.sort(function(a,b){return b.score-a.score;});
+  return suggestions.slice(0,4);
+}
+
+function buildPat(pat,key){
+  return pat.num.map(function(n,i){
+    var note=n2note(n,key);
+    var isMin=n===n.toLowerCase()&&n!==n.toUpperCase();
+    var quality=isMin?'min':'maj';
+    return {root:note||key,quality:quality,numeral:n,key:key,id:Date.now()+i};
+  });
+}
+
+function getPatInfo(history,style){
+  if(!history||history.length<2)return null;
+  var nums=history.map(function(c){return c.numeral||'I';});
+  var pats=PAT[style]||PAT.pop;
+  var best=null;
+  pats.forEach(function(pat){var matches=0;nums.forEach(function(n){if(pat.num.includes(n))matches++;});var score=matches/pat.num.length;if(!best||score>best.score)best={pattern:pat,score:score};});
+  return best;
+}
+
+function getNum(note,key,qual){
+  var diat=getDiatonic(key);var match=diat.find(function(c){return c.root===note;});
+  if(match)return match.numeral+(qual&&qual!=='maj'&&qual!=='min'?qual:'');
+  var ki=NOTES.indexOf(key),ni=NOTES.indexOf(note);if(ki<0||ni<0)return '?';
+  var iv=(ni-ki+12)%12;var map={0:'I',1:'bII',2:'II',3:'bIII',4:'III',5:'IV',6:'bV',7:'V',8:'bVI',9:'VI',10:'bVII',11:'VII'};
+  return (map[iv]||'?')+(qual&&qual!=='maj'&&qual!=='min'?qual:'');
+}
+
+function getScN(root,scaleName){
+  var ri=NOTES.indexOf(root);if(ri<0)return [];
+  var intervals=SCALES[scaleName]||SCALES['Minor Pentatonic'];
+  return intervals.map(function(iv){return NOTES[(ri+iv)%12];});
+}
+
+function getSharedNotes(chord1,chord2){
+  var t1=getCtones(chord1.root,chord1.quality);var t2=getCtones(chord2.root,chord2.quality);
+  return t1.filter(function(n){return t2.includes(n);});
+}
+
+function getTransitionHint(from,to,lang){
+  if(!from||!to)return null;var isFr=lang==='fr';
+  var fFrom=getFretWindow(from.root);var fTo=getFretWindow(to.root);var diff=fTo-fFrom;var shared=getSharedNotes(from,to);
+  var moveText=diff===0?(isFr?'Meme position':'Same position'):diff>0?(isFr?'Montez '+diff+' frettes':'Up '+diff+' frets'):(isFr?'Descendez '+Math.abs(diff)+' frettes':'Down '+Math.abs(diff)+' frets');
+  var sharedText=shared.length>0?(isFr?'Gardez : '+shared.join(', '):'Keep down: '+shared.join(', ')):(isFr?'Levez tous les doigts':'Lift all fingers');
+  return {move:moveText,shared:sharedText,diff:diff,sharedNotes:shared};
+}
+
+function getCsKey(root,qual){return root.replace('#','s')+'_'+qual;}
+
+const CS={
+  C_maj:[0,3,2,0,1,0],C_min:[-1,3,5,5,4,3],C_7:[0,3,2,3,1,0],
+  'Cs_maj':[-1,4,6,6,6,4],'D_maj':[-1,-1,0,2,3,2],'D_min':[-1,-1,0,2,3,1],
+  'D_7':[-1,-1,0,2,1,2],'Ds_maj':[-1,6,8,8,8,6],E_maj:[0,2,2,1,0,0],E_min:[0,2,2,0,0,0],E_7:[0,2,0,1,0,0],
+  F_maj:[1,1,2,3,3,1],F_min:[1,1,1,3,3,1],F_7:[1,1,2,1,3,1],'Fs_maj':[2,2,3,4,4,2],
+  G_maj:[3,2,0,0,0,3],G_min:[3,5,5,3,3,3],G_7:[3,2,0,0,0,1],
+  'Gs_maj':[4,6,6,5,4,4],A_maj:[0,0,2,2,2,0],A_min:[0,0,2,2,1,0],
+  A_7:[0,0,2,0,2,0],'As_maj':[-1,1,3,3,3,1],B_maj:[-1,2,4,4,4,2],
+  B_min:[-1,2,4,4,3,2],B_7:[-1,2,1,2,0,2],
+  'Fs_min':[2,2,2,4,4,2],'Gs_min':[4,6,6,4,4,4],'As_min':[6,8,8,6,6,6],'Cs_min':[-1,4,6,6,5,4],'Ds_min':[-1,6,8,8,7,6],
+  'Fs_7':[2,0,2,1,2,2],'Gs_7':[4,6,4,5,4,4],'As_7':[1,1,3,1,3,1],'Cs_7':[4,4,6,4,5,4],'Ds_7':[6,6,8,6,7,6]
+};
+
+function getCsKey2(root,qual){
+  var q=qual==='min'?'min':qual==='7'?'7':qual==='maj7'?'maj':qual==='min7'?'min':'maj';
+  return root.replace('#','s')+'_'+q;
+}
+
+function ChordDiag(p){
+  if(!p.root)return null;
+  var root=p.root,qual=p.qual,size=p.size,showNote=p.showNote,numeral=p.numeral;
+  var key=getCsKey2(root,qual);var raw=CS[key];
+  if(!raw||!Array.isArray(raw))return null;
+  var lg=size==='lg';
+  var SW=lg?28:22,FH=lg?26:20,R=lg?11:9,PT=lg?28:22,PL=lg?18:14,nS=6,nF=4;
+  var colOrder=(root==='F'||root==='F#')?[5,4,3,2,1,0]:[0,1,2,3,4,5],openSemi=[4,11,7,2,9,4];
+  var pos=raw.filter(function(f){return f>0;});
+  if(!pos.length)return null;
+  var base=Math.min.apply(null,pos);
+  var disp=raw.map(function(f){return f<0?-1:f===0?0:f-base+1;});
+  var f1s=[];
+  for(var ci=0;ci<nS;ci++){if(disp[colOrder[ci]]===1)f1s.push(ci);}
+  var minC=f1s.length>0?Math.min.apply(null,f1s):0;
+  var maxC=f1s.length>0?Math.max.apply(null,f1s):0;
+  var nutH=base>1?2:5,svgW=PL+(nS-1)*SW+PL+8,svgH=PT+nF*FH+(lg?44:34);
+  var els=[];
+  if(base>1){els.push(React.createElement('text',{key:'fr',x:4,y:PT+FH/2+4,textAnchor:'start',fill:'#c0c4d8',fontSize:lg?11:9,fontFamily:'Courier New,monospace'},base+'fr'));}
+  els.push(React.createElement('rect',{key:'nut',x:PL,y:PT-nutH,width:(nS-1)*SW,height:nutH,fill:base>1?'#252550':'#c0c4d8'}));
+  for(var fi=1;fi<=nF;fi++){els.push(React.createElement('line',{key:'fh'+fi,x1:PL,y1:PT+fi*FH,x2:PL+(nS-1)*SW,y2:PT+fi*FH,stroke:'#252550',strokeWidth:1}));}
+  for(var ci2=0;ci2<nS;ci2++){var thArr=(root==='F'||root==='F#'||root==='C#'||root==='G#')?[2.2,1.7,1.3,1.0,0.8,0.7]:[0.7,0.8,1.0,1.3,1.7,2.2];var th2=thArr[ci2];els.push(React.createElement('line',{key:'sv'+ci2,x1:PL+ci2*SW,y1:PT,x2:PL+ci2*SW,y2:PT+nF*FH,stroke:'#3a3a60',strokeWidth:th2}));}
+  if(f1s.length>=3){var by=PT+FH/2;els.push(React.createElement('rect',{key:'bar',x:PL+minC*SW-R*0.5,y:by-R,width:(maxC-minC)*SW+R,height:R*2,rx:R,fill:'#7C3AED',opacity:0.92}));els.push(React.createElement('text',{key:'barlbl',x:PL+minC*SW+(maxC-minC)*SW/2,y:by+4,textAnchor:'middle',fill:'#ffffff',fontSize:lg?9:7,fontWeight:'bold',fontFamily:'monospace'},'1'));}
+  for(var ci3=0;ci3<nS;ci3++){var si3=colOrder[ci3];var fv3=disp[si3];var cx3=PL+ci3*SW;var noteName3=NOTES[(openSemi[si3]+Math.max(0,raw[si3]))%12];if(fv3===-1){els.push(React.createElement('text',{key:'mx'+ci3,x:cx3,y:PT-nutH-4,textAnchor:'middle',fill:'#F87171',fontSize:lg?12:10,fontWeight:'bold'},'x'));}else if(fv3===0){els.push(React.createElement('circle',{key:'oc'+ci3,cx:cx3,cy:PT-nutH-8,r:lg?6:5,fill:'none',stroke:'#9090c8',strokeWidth:1.5}));}if(fv3>0){var dy3=PT+(fv3-0.5)*FH;var isBarre3=f1s.length>=3&&fv3===1&&f1s.indexOf(ci3)>=0;if(!isBarre3){els.push(React.createElement('circle',{key:'dc'+ci3,cx:cx3,cy:dy3,r:R,fill:'#7C3AED'}));var lbl3=showNote?noteName3:String(fv3);els.push(React.createElement('text',{key:'dl'+ci3,x:cx3,y:dy3+4,textAnchor:'middle',fill:'#ffffff',fontSize:lg?9:7,fontWeight:'bold',fontFamily:'monospace'},lbl3));}}}
+  var chordLabel=(root||'')+(qual==='maj'?'':qual||'');
+  els.push(React.createElement('text',{key:'cn',x:PL+(nS-1)*SW/2,y:PT+nF*FH+(lg?22:18),textAnchor:'middle',fill:'#e0e4f0',fontSize:lg?14:11,fontWeight:700,fontFamily:'Courier New,monospace'},chordLabel));
+  if(numeral){els.push(React.createElement('text',{key:'rn',x:PL+(nS-1)*SW/2,y:PT+nF*FH+(lg?38:30),textAnchor:'middle',fill:'#9090c8',fontSize:lg?11:9,fontFamily:'Georgia,serif'},numeral));}
+  return React.createElement('svg',{width:svgW,height:svgH,style:{display:'block',margin:'0 auto'}},els);
+}
+
+function getAvoidNotes(root,avoidText,lang){
+  if(!root||!avoidText)return [];var ri=NOTES.indexOf(root);if(ri<0)return [];
+  var intervalMap={'major 7th':11,'major 7':11,'maj7':11,'septieme majeure':11,'minor 7th':10,'minor 7':10,'min7':10,'m7':10,'septieme mineure':10,'major 6th':9,'6th':9,'sixte':9,'b2':1,'minor 2nd':1,'b6':8,'minor 6th':8,'tritone':6,'b5':6,'too clean':-1,'trop propre':-1,'playing outside':-1,'jouer hors':-1,'heavy bends':-1,'bends forts':-1,'long legato':-1,'busy playing':-1,'minor pentatonic':-1,'distorsion':-1,'minor sound':-1};
+  var lower=avoidText.toLowerCase();var results=[];
+  Object.keys(intervalMap).forEach(function(k){if(lower.indexOf(k)>=0&&intervalMap[k]>=0){results.push(NOTES[(ri+intervalMap[k])%12]);}});
+  return results;
+}
+
+function autoCorrelate(buf,sr){
+  var SIZE=buf.length,rms=0;
+  for(var i=0;i<SIZE;i++)rms+=buf[i]*buf[i];
+  rms=Math.sqrt(rms/SIZE);if(rms<0.03)return -1;
+  var r1=0,r2=SIZE-1;
+  for(var i=0;i<SIZE/2;i++){if(Math.abs(buf[i])<0.2){r1=i;break;}}
+  for(var i=1;i<SIZE/2;i++){if(Math.abs(buf[SIZE-i])<0.2){r2=SIZE-i;break;}}
+  var buf2=buf.slice(r1,r2);var c2=new Float32Array(buf2.length);
+  for(var i=0;i<buf2.length;i++)for(var j=0;j<buf2.length-i;j++)c2[i]+=buf2[j]*buf2[j+i];
+  var d=0;while(c2[d]>c2[d+1])d++;
+  var maxval=-1,maxpos=-1;
+  for(var i=d;i<buf2.length;i++){if(c2[i]>maxval){maxval=c2[i];maxpos=i;}}
+  var T0=maxpos;var x1=c2[T0-1],x2=c2[T0],x3=c2[T0+1];
+  var a=(x1+x3-2*x2)/2,b=(x3-x1)/2;if(a)T0=T0-b/(2*a);
+  return sr/T0;
+}
+
+function Tuner(p){
+  var onClose=p.onClose;
+  var noteS=useState(null),detNote=noteS[0],setDetNote=noteS[1];
+  var centsS=useState(0),cents=centsS[0],setCents=centsS[1];
+  var listeningS=useState(false),listening=listeningS[0],setListening=listeningS[1];
+  var streamRef=useRef(null);var animRef=useRef(null);var ctxRef=useRef(null);
+  function stop(){if(animRef.current)cancelAnimationFrame(animRef.current);if(streamRef.current)streamRef.current.getTracks().forEach(function(t){t.stop();});if(ctxRef.current&&ctxRef.current.state!=='closed')ctxRef.current.close();setListening(false);}
+  function start(){
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      streamRef.current=stream;var ctx=new (window.AudioContext||window.webkitAudioContext)();ctxRef.current=ctx;
+      var src=ctx.createMediaStreamSource(stream);var analyser=ctx.createAnalyser();analyser.fftSize=2048;src.connect(analyser);setListening(true);
+      var buf=new Float32Array(analyser.fftSize);
+      function detect(){analyser.getFloatTimeDomainData(buf);var rms=0;for(var i=0;i<buf.length;i++)rms+=buf[i]*buf[i];rms=Math.sqrt(rms/buf.length);if(rms>0.005){var freq=autoCorrelate(buf,ctx.sampleRate);if(freq>0){var midi=12*Math.log2(freq/440)+69;var noteNum=Math.round(midi);var c=Math.round((midi-noteNum)*100);setDetNote(NOTES[noteNum%12]);setCents(c);}}animRef.current=requestAnimationFrame(detect);}
+      detect();
+    }).catch(function(){setListening(false);});
+  }
+  useEffect(function(){return function(){stop();};},[]);
+  var tunings=['e','B','G','D','A','E'];
+  return React.createElement('div',{style:{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}},
+    React.createElement('div',{style:{background:'#07071c',border:'2px solid #1e1e40',borderRadius:'16px',padding:'24px',maxWidth:'340px',width:'100%',margin:'0 16px'}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}},React.createElement('div',{style:{fontSize:'14px',fontWeight:700,color:'#38BDF8',letterSpacing:'2px'}},'CHROMATIC TUNER'),React.createElement('button',{onClick:onClose,style:{background:'transparent',border:'none',color:'#c0c4d8',cursor:'pointer',fontSize:'20px'}},'x')),
+      React.createElement('div',{style:{textAlign:'center',marginBottom:'16px'}},React.createElement('div',{style:{fontSize:'72px',fontWeight:900,color:detNote?'#F59E0B':'#252540',fontFamily:'Impact,monospace',lineHeight:1,marginBottom:'8px'}},detNote||'?'),React.createElement('div',{style:{fontSize:'14px',color:Math.abs(cents)<10?'#34D399':'#F59E0B',fontWeight:700}},detNote?(Math.abs(cents)<10?'IN TUNE v':(cents>0?'+'+cents:cents)+' cents'):'')),
+      React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap',justifyContent:'center',marginBottom:'16px'}},tunings.map(function(s){return React.createElement('div',{key:s,style:{padding:'6px 12px',borderRadius:'8px',background:'#0c0c20',border:'1px solid #1e1e40',fontSize:'13px',fontWeight:700,color:'#c0c4d8',fontFamily:'Courier New,monospace'}},s);})),
+      React.createElement('button',{onClick:listening?stop:start,style:{width:'100%',padding:'12px',borderRadius:'10px',border:'none',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:900,fontSize:'14px',background:listening?'#F87171':'#38BDF8',color:'#050510'}},listening?'STOP':'START TUNING'))
+  );
+}
+
+function Recorder(p){
+  var lang=p.lang;var recS=useState(false),isRec=recS[0],setIsRec=recS[1];
+  var chunksR=useRef([]);var mrRef=useRef(null);var isFr=lang==='fr';
+  function startRec(){navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(stream){var mr=new MediaRecorder(stream);mrRef.current=mr;chunksR.current=[];mr.ondataavailable=function(e){if(e.data.size>0)chunksR.current.push(e.data);};mr.onstop=function(){var blob=new Blob(chunksR.current,{type:'audio/webm'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;var d=new Date();a.download='lockgroove-solo-'+d.getHours()+'-'+d.getMinutes()+'.webm';a.click();URL.revokeObjectURL(url);stream.getTracks().forEach(function(t){t.stop();});};mr.start();setIsRec(true);}).catch(function(e){console.error('Mic error:',e);});}
+  function stopRec(){if(mrRef.current&&mrRef.current.state==='recording'){mrRef.current.stop();setIsRec(false);}}
+  return React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'10px',background:isRec?'rgba(248,113,113,0.1)':'rgba(52,211,153,0.06)',border:'1.5px solid '+(isRec?'rgba(248,113,113,0.5)':'rgba(52,211,153,0.3)'),borderRadius:'10px',padding:'10px 14px',marginBottom:'12px'}},
+    React.createElement('div',{style:{width:'10px',height:'10px',borderRadius:'50%',background:isRec?'#F87171':'#34D399',flexShrink:0}}),
+    React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:isRec?'#F87171':'#34D399',marginBottom:'2px'}},isRec?(isFr?'ENREGISTREMENT...':'RECORDING...'):(isFr?'ENREGISTRER VOTRE SOLO':'RECORD YOUR SOLO')),React.createElement('div',{style:{fontSize:'11px',color:'#c0c4d8'}},isRec?(isFr?'Appuyez STOP pour telecharger':'Tap STOP to download'):(isFr?'Capture ce que vous jouez par-dessus la boucle':'Captures what you play over the loop'))),
+    React.createElement('button',{onClick:isRec?stopRec:startRec,style:{padding:'8px 16px',borderRadius:'8px',cursor:'pointer',fontWeight:900,fontSize:'13px',fontFamily:'Courier New,monospace',border:'none',background:isRec?'#F87171':'#34D399',color:'#050510'}},isRec?'STOP':'REC')
+  );
+}
+
+function AiChat(p){
+  var isFr=p.lang==='fr';var key=p.currentKey||'C';var style=p.currentStyle||'rock';
+  var msgsS=useState([]),messages=msgsS[0],setMessages=msgsS[1];
+  var loadingS=useState(false),loading=loadingS[0],setLoading=loadingS[1];
+  var qS=useState(''),question=qS[0],setQuestion=qS[1];
+  var voiceRef=useRef(null);var listeningS=useState(false),isListening=listeningS[0],setListening=listeningS[1];
+  var apiKeyS=useState(function(){try{return localStorage.getItem('gc_api_key')||'';}catch(e){return '';}}),apiKey=apiKeyS[0],setApiKey=apiKeyS[1];
+  var showKeyS=useState(false),showKey=showKeyS[0],setShowKey=showKeyS[1];
+  var rememberS=useState(function(){try{return !!localStorage.getItem('gc_api_key');}catch(e){return false;}}),remember=rememberS[0],setRemember=rememberS[1];
+  var sysP='You are GUITAR COMPASS AI - expert guitar coach. Key: '+key+'. Style: '+style+'. Be concise. Plain text only, no markdown.';
+  function startVoice(){if(isListening){if(voiceRef.current)voiceRef.current.abort();setListening(false);return;}var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){setMessages(function(m){return m.concat([{role:'assistant',content:'Voice not supported.'}]);});return;}try{var r=new SR();voiceRef.current=r;r.lang=isFr?'fr-FR':'en-US';r.onresult=function(e){if(e.results&&e.results[0]&&e.results[0][0]){var t=e.results[0][0].transcript;setQuestion(t);setListening(false);setTimeout(function(){askQ(t);},300);}else setListening(false);};r.onerror=function(){setListening(false);};r.onend=function(){setListening(false);};setListening(true);setTimeout(function(){r.start();},100);}catch(ex){setListening(false);}}
+  function askQ(q){
+    var text=q||question;if(!text||!text.trim()||loading)return;
+    var nm=messages.concat([{role:'user',content:text}]);
+    setMessages(nm);setQuestion('');setLoading(true);
+    var isGroq=apiKey&&apiKey.startsWith('gsk_');
+    var isOpenAI=apiKey&&apiKey.startsWith('sk-')&&!apiKey.startsWith('sk-ant-');
+    if(isGroq){
+      fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:500,messages:[{role:'system',content:sysP}].concat(nm.map(function(m){return {role:m.role,content:m.content};}))})}).then(function(r){return r.json();}).then(function(d){if(d.error){setMessages(function(m){return m.concat([{role:'assistant',content:'Groq error: '+d.error.message}]);});setLoading(false);return;}setMessages(function(m){return m.concat([{role:'assistant',content:d.choices&&d.choices[0]?d.choices[0].message.content:'...'}]);});setLoading(false);}).catch(function(){setMessages(function(m){return m.concat([{role:'assistant',content:'Could not connect to Groq.'}]);});setLoading(false);});
+    } else if(isOpenAI){
+      fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},body:JSON.stringify({model:'gpt-4o-mini',max_tokens:500,messages:[{role:'system',content:sysP}].concat(nm.map(function(m){return {role:m.role,content:m.content};}))})}).then(function(r){return r.json();}).then(function(d){if(d.error){setMessages(function(m){return m.concat([{role:'assistant',content:'OpenAI error: '+d.error.message}]);});setLoading(false);return;}setMessages(function(m){return m.concat([{role:'assistant',content:d.choices&&d.choices[0]?d.choices[0].message.content:'...'}]);});setLoading(false);}).catch(function(){setMessages(function(m){return m.concat([{role:'assistant',content:'Could not connect to OpenAI.'}]);});setLoading(false);});
+    } else {
+      var headers={'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'};
+      if(apiKey&&apiKey.startsWith('sk-ant-'))headers['x-api-key']=apiKey;
+      fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:headers,body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,system:sysP,messages:nm.map(function(m){return {role:m.role,content:m.content};})})}).then(function(r){return r.json();}).then(function(d){if(d.error){setMessages(function(m){return m.concat([{role:'assistant',content:'Error: '+d.error.message+(d.error.message.indexOf('API key')>=0?' — paste your Anthropic key below.':'')}]);});setLoading(false);return;}setMessages(function(m){return m.concat([{role:'assistant',content:d.content&&d.content[0]?d.content[0].text:'...'}]);});setLoading(false);}).catch(function(){setMessages(function(m){return m.concat([{role:'assistant',content:'Cannot connect. Try adding your API key below.'}]);});setLoading(false);});
+    }
+  }
+  var MicSvg=React.createElement('svg',{width:'22',height:'22',viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:'2',strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('path',{d:'M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z'}),React.createElement('path',{d:'M19 10v2a7 7 0 0 1-14 0v-2'}),React.createElement('line',{x1:'12',y1:'19',x2:'12',y2:'23'}),React.createElement('line',{x1:'8',y1:'23',x2:'16',y2:'23'}));
+  var SendSvg=React.createElement('svg',{width:'20',height:'20',viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:'2.5',strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('line',{x1:'22',y1:'2',x2:'11',y2:'13'}),React.createElement('polygon',{points:'22 2 15 22 11 13 2 9 22 2'}));
+  var suggestions=isFr?['Comment improviser en '+key+' '+style+' ?','Quels accords vont avec le '+style+' ?','Meilleurs licks en '+key+' ?','Gamme recommandee pour le '+style+' ?']:['How to improvise in key of '+key+'?','Best chords for '+style+' style?','Top licks in key of '+key+'?','Best scale for '+style+'?'];
+  return React.createElement('div',{style:{background:'#04040c',display:'flex',flexDirection:'column',padding:'16px 20px',maxWidth:'640px',margin:'0 auto',minHeight:'100vh'}},
+    React.createElement('div',{style:{textAlign:'center',marginBottom:'16px',paddingTop:'8px'}},React.createElement('div',{style:{fontSize:'20px',fontWeight:900,color:'#A78BFA',letterSpacing:'4px',fontFamily:'Courier New,monospace',marginBottom:'10px'}},'AI GUITARIST GURU'),React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}},React.createElement('span',{style:{fontSize:'12px',color:'#9090c8',fontFamily:'Courier New,monospace'}},isFr?'Contexte :':'Context:'),React.createElement('span',{style:{background:'rgba(245,158,11,0.15)',border:'1px solid #F59E0B66',borderRadius:'8px',padding:'3px 10px',color:'#F59E0B',fontWeight:900,fontSize:'15px',fontFamily:'Courier New,monospace'}},key),React.createElement('span',{style:{background:'rgba(96,165,250,0.15)',border:'1px solid #60A5FA66',borderRadius:'8px',padding:'3px 10px',color:'#60A5FA',fontWeight:700,fontSize:'12px',fontFamily:'Courier New,monospace'}},style.toUpperCase()))),
+    React.createElement('div',{style:{background:'#0a0a1e',border:'2px solid #1a1a3a',borderRadius:'20px',padding:'12px 14px',marginBottom:'16px'}},React.createElement('div',{style:{display:'flex',gap:'10px',alignItems:'flex-end'}},React.createElement('textarea',{value:question,onChange:function(e){setQuestion(e.target.value);},onKeyDown:function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();askQ(question);}},placeholder:isFr?'Posez votre question guitare...':'Ask your guitar question...',rows:2,style:{flex:1,background:'transparent',border:'none',outline:'none',color:'#e0e4f0',fontSize:'14px',fontFamily:'system-ui,sans-serif',resize:'none',lineHeight:'1.5'}}),React.createElement('button',{onClick:startVoice,style:{width:'44px',height:'44px',borderRadius:'50%',border:'2px solid '+(isListening?'#F87171':'#A78BFA'),background:isListening?'rgba(248,113,113,0.2)':'rgba(167,139,250,0.15)',color:isListening?'#F87171':'#A78BFA',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:isListening?'0 0 14px rgba(248,113,113,0.5)':'none'}},MicSvg),React.createElement('button',{onClick:function(){askQ(question);},style:{width:'44px',height:'44px',borderRadius:'50%',border:'none',background:question.trim()?'linear-gradient(135deg,#A78BFA,#7C3AED)':'#1a1a3a',color:question.trim()?'#fff':'#555',cursor:question.trim()?'pointer':'default',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},SendSvg))),
+    messages.length>0?React.createElement('button',{onClick:function(){setMessages([]);setQuestion('');},style:{background:'transparent',border:'1px solid #F8717144',borderRadius:'10px',color:'#F87171',fontSize:'11px',cursor:'pointer',fontFamily:'Courier New,monospace',padding:'5px 14px',letterSpacing:'2px',display:'block',margin:'0 auto 10px'}},isFr?'EFFACER LA CONVERSATION':'CLEAR CONVERSATION'):null,
+    messages.length===0?React.createElement('div',{style:{marginBottom:'16px'}},React.createElement('div',{style:{fontSize:'12px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'12px',textAlign:'center',letterSpacing:'2px',fontWeight:700}},isFr?'SUGGESTIONS':'TRY ASKING'),React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:'10px',justifyContent:'center'}},suggestions.map(function(s,si){return React.createElement('button',{key:si,onClick:function(){setQuestion(s);askQ(s);},style:{padding:'10px 14px',borderRadius:'20px',border:'1px solid #A78BFA44',background:'rgba(167,139,250,0.08)',color:'#A78BFA',fontFamily:'Courier New,monospace',fontSize:'12px',cursor:'pointer',textAlign:'left',lineHeight:'1.4'}},s);}))):null,
+    React.createElement('div',{style:{flex:1,display:'flex',flexDirection:'column',gap:'12px',marginBottom:'12px'}},messages.map(function(m,mi){var isU=m.role==='user';return React.createElement('div',{key:mi,style:{display:'flex',justifyContent:isU?'flex-end':'flex-start'}},React.createElement('div',{style:{maxWidth:'85%'}},React.createElement('div',{style:{padding:'12px 16px',borderRadius:isU?'18px 18px 4px 18px':'18px 18px 18px 4px',background:isU?'linear-gradient(135deg,#A78BFA,#7C3AED)':'#0f0f2a',border:isU?'none':'1px solid #1a1a3a',color:'#fff',fontSize:'14px',lineHeight:'1.6',fontFamily:'system-ui,sans-serif'}},m.content),!isU?React.createElement('button',{onClick:function(){if(window.speechSynthesis.speaking){window.speechSynthesis.cancel();return;}var u=new SpeechSynthesisUtterance(m.content);u.lang=isFr?'fr-FR':'en-US';u.rate=0.95;window.speechSynthesis.speak(u);},style:{marginTop:'4px',background:'rgba(52,211,153,0.1)',border:'1px solid #34D39944',borderRadius:'10px',padding:'4px 10px',color:'#34D399',fontSize:'11px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700}},isFr?'ECOUTER':'LISTEN'):null));})  ,loading?React.createElement('div',{style:{padding:'12px 16px',borderRadius:'18px',background:'#0f0f2a',border:'1px solid #1a1a3a',color:'#A78BFA',fontFamily:'Courier New,monospace',fontSize:'16px',letterSpacing:'5px',alignSelf:'flex-start'}},'...'):null),
+    React.createElement('div',{style:{borderTop:'1px solid #1a1a3a',paddingTop:'10px'}},
+      React.createElement('button',{onClick:function(){setShowKey(function(v){return !v;});},style:{background:'transparent',border:'none',color:'#555577',fontSize:'11px',cursor:'pointer',fontFamily:'Courier New,monospace',letterSpacing:'1px',display:'block',margin:'0 auto',marginBottom:'6px'}},showKey?'hide api key ▲':'⚙ api key (needed outside Claude.ai) ▼'),
+      showKey?React.createElement('div',{style:{background:'#07071c',border:'1px solid #1a1a3a',borderRadius:'12px',padding:'12px'}},
+        React.createElement('div',{style:{fontSize:'11px',color:'#F59E0B',marginBottom:'8px',lineHeight:1.6,fontFamily:'Courier New,monospace',fontWeight:700}},'Paste your Groq key (gsk_... — free!) or Anthropic (sk-ant-...) or OpenAI (sk-...) key.'),
+        React.createElement('input',{type:'password',value:apiKey,onChange:function(e){
+          setApiKey(e.target.value);
+          if(remember){try{if(e.target.value){localStorage.setItem('gc_api_key',e.target.value);}else{localStorage.removeItem('gc_api_key');}}catch(ex){}}
+        },placeholder:'gsk_... or sk-ant-... or sk-...',style:{width:'100%',boxSizing:'border-box',background:'#0a0a1e',border:'1.5px solid '+(apiKey?'#34D399':'#1a1a3a'),color:'#e0e4f0',borderRadius:'8px',padding:'10px 12px',fontFamily:'Courier New,monospace',fontSize:'12px',outline:'none',marginBottom:'6px'}}),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'4px'}},
+          apiKey?React.createElement('div',{style:{fontSize:'11px',color:'#34D399',fontFamily:'Courier New,monospace',fontWeight:700}},apiKey.startsWith('gsk_')?'✓ Groq key ready (free)':apiKey.startsWith('sk-ant-')?'✓ Anthropic key ready':apiKey.startsWith('sk-')?'✓ OpenAI key ready':'⚠ Unrecognized format'):React.createElement('div',null),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer',fontSize:'11px',color:remember?'#34D399':'#9090c8',fontFamily:'Courier New,monospace'}},
+            React.createElement('input',{type:'checkbox',checked:remember,onChange:function(e){
+              setRemember(e.target.checked);
+              try{if(e.target.checked&&apiKey){localStorage.setItem('gc_api_key',apiKey);}else{localStorage.removeItem('gc_api_key');}}catch(ex){}
+            },style:{accentColor:'#34D399'}}),
+            'Remember on this device'
+          )
+        )
+      ):null
+    )
+  );
+}
+
+function SuggestionBox(p){
+  var patInfo=p.patInfo,history=p.history,eKey=p.eKey,lang=p.lang,dn2=p.dn;
+  if(!patInfo||!patInfo.pattern||!patInfo.score)return null;
+  var isFr=lang==='fr';var pat=patInfo.pattern,score=patInfo.score;if(score>=0.9)return null;
+  var played=history.map(function(c){return c.numeral?c.numeral.replace(/7|maj7|min7|m7/g,'').toLowerCase():'';});
+  var expected=pat.num.map(function(n){return n.replace(/7|maj7|min7|m7/g,'').toLowerCase();});
+  var lastPlayed=played[played.length-1]||'';var nextInPat=null;
+  for(var j=0;j<expected.length;j++){if(expected[j]===lastPlayed){nextInPat=pat.num[(j+1)%expected.length];break;}}
+  var nextNote=nextInPat?n2note(nextInPat,eKey):'';
+  var nextDisplay=nextNote?(dn2?dn2(nextNote,lang,true):nextNote)+(nextInPat&&nextInPat!==nextInPat.toUpperCase()&&nextInPat===nextInPat.toLowerCase()?'m':''):'';
+  var msg='';
+  if(score<0.4)msg=isFr?'Score faible. Essayez d ajouter '+(nextDisplay||'un accord du pattern')+' pour aller vers '+pat.name+'.':'Low score. Try adding '+(nextDisplay||'a pattern chord')+' to move toward '+pat.name+'.';
+  else if(score<0.7)msg=isFr?'Bon debut. Ajoutez '+(nextDisplay?nextDisplay:'quelques accords')+' pour completer '+pat.name+'.':'Good start. Adding '+(nextDisplay?nextDisplay:'a few chords')+' would complete '+pat.name+'.';
+  else msg=isFr?'Tres bon match. Encore '+(nextDisplay?nextDisplay:'un accord')+' et vous completez '+pat.name+'.':'Very close. Add '+(nextDisplay?nextDisplay:'one more chord')+' to complete '+pat.name+'.';
+  return React.createElement('div',{style:{background:'rgba(56,189,248,0.06)',border:'1px solid rgba(56,189,248,0.2)',borderRadius:'8px',padding:'9px 12px',fontSize:'12px',color:'#38BDF8',lineHeight:1.6,marginTop:'8px'}},React.createElement('span',{style:{fontWeight:700,marginRight:'6px'}},isFr?'CONSEIL ->':'TIP ->'),msg);
+}
+
+function LandingPage(p){
+  var lang=p.lang,setLang=p.setLang,setMode=p.setMode,setTab=p.setTab,setSugg=p.setSugg,style=p.style;
+  var isFr=lang==='fr';
+  var NoteSvg=React.createElement('svg',{width:'22',height:'26',viewBox:'0 0 14 16',fill:'#F59E0B'},React.createElement('rect',{x:'7',y:'0',width:'2',height:'9',rx:'1'}),React.createElement('ellipse',{cx:'5',cy:'12',rx:'4',ry:'3'}));
+  var GuitarSvg=React.createElement('svg',{width:'24',height:'24',viewBox:'0 0 24 24',fill:'none',stroke:'#38BDF8',strokeWidth:'2',strokeLinecap:'round'},React.createElement('path',{d:'M9 3h6l2 6h-3c0 0 0 3-3 4s-4 1-4 1l-2 5H3l2-5c0 0-2-1-2-3s2-4 4-5z'}),React.createElement('line',{x1:'12',y1:'3',x2:'12',y2:'9'}));
+  var PeopleSvg=React.createElement('svg',{width:'26',height:'22',viewBox:'0 0 24 24',fill:'none',stroke:'#34D399',strokeWidth:'2',strokeLinecap:'round'},React.createElement('circle',{cx:'9',cy:'5',r:'3'}),React.createElement('path',{d:'M3 19v-2a6 6 0 0 1 12 0v2'}),React.createElement('circle',{cx:'18',cy:'7',r:'2'}),React.createElement('path',{d:'M16 19v-1a4 4 0 0 1 6 0v1'}));
+  var PlaySvg=React.createElement('svg',{width:'22',height:'22',viewBox:'0 0 24 24',fill:'none',stroke:'#A78BFA',strokeWidth:'2',strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('polygon',{points:'5 3 19 12 5 21 5 3'}));
+  function BigBtn(color,rgb,border,onClick,icon,title,desc){return React.createElement('div',{onClick:onClick,style:{background:'rgba('+rgb+',0.06)',border:'2px solid rgba('+border+')',borderRadius:'16px',padding:'18px 20px',cursor:'pointer',display:'flex',alignItems:'center',gap:'16px'}},React.createElement('div',{style:{width:'48px',height:'48px',borderRadius:'50%',background:'rgba('+rgb+',0.18)',border:'2px solid '+color,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},icon),React.createElement('div',null,React.createElement('div',{style:{fontSize:'17px',fontWeight:900,color:color,marginBottom:'4px',fontFamily:'Courier New,monospace'}},title),React.createElement('div',{style:{fontSize:'12px',color:'#c0c4d8',lineHeight:'1.6'}},desc)));}
+  return React.createElement('div',{style:{minHeight:'100vh',background:'#04040c',color:'#e8eaf8',display:'flex',flexDirection:'column',alignItems:'center',padding:'24px 20px',fontFamily:'Courier New,monospace'}},
+    React.createElement('div',{style:{display:'flex',gap:'8px',justifyContent:'center',marginBottom:'16px'}},['EN','FR'].map(function(l){return React.createElement('button',{key:l,onClick:function(){setLang(l.toLowerCase());},style:{padding:'6px 13px',borderRadius:'7px',cursor:'pointer',fontWeight:700,fontSize:'12px',fontFamily:'Courier New,monospace',border:'1.5px solid '+(lang===l.toLowerCase()?'#A78BFA':'#252550'),background:lang===l.toLowerCase()?'rgba(167,139,250,0.15)':'transparent',color:lang===l.toLowerCase()?'#A78BFA':'#c0c4d8'}},l);})),
+    React.createElement('div',{style:{fontSize:'42px',fontWeight:900,letterSpacing:'6px',color:'#F59E0B',fontFamily:'Impact,sans-serif',marginBottom:'4px',textAlign:'center'}},'GUITAR COMPASS'),
+    React.createElement('div',{style:{fontSize:'14px',color:'#c0c4d8',marginBottom:'4px',letterSpacing:'2px',textAlign:'center'}},isFr?'VOTRE CO-PILOTE GUITARE':'YOUR GUITAR CO-PILOT'),
+    React.createElement('div',{style:{fontSize:'11px',color:'#34D399',marginBottom:'28px',textAlign:'center',letterSpacing:'1px'}},isFr?'Fonctionne sans wifi (sauf AI et tutoriels video)':'Works offline — only AI & video tutorials need internet'),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'12px',width:'100%',maxWidth:'440px'}},
+      BigBtn('#F59E0B','245,158,11','245,158,11,0.5',function(){setMode('solo');setTab('setup');},NoteSvg,isFr?'CHOISIR UNE PROGRESSION':'PICK A PROGRESSION',isFr?'Choisissez votre tonalite et style.':'Choose your key and style. Load a progression and play.'),
+      BigBtn('#38BDF8','56,189,248','56,189,248,0.4',function(){setSugg(getSugg([],style));setMode('solo');setTab('jam');},GuitarSvg,isFr?'JAM FREESTYLE':'FREE JAM',isFr?'Jouez une note, l app detecte et suggere.':'Play a note, the app detects. No theory needed.'),
+      BigBtn('#34D399','52,211,153','52,211,153,0.35',function(){setMode('band');setTab('band');},PeopleSvg,isFr?'MODE GROUPE':'BAND MODE',isFr?'Set list avec d autres musiciens.':'Build a set list with other musicians.'),
+      React.createElement('div',{onClick:function(){setMode('solo');setTab('learn');},style:{background:'linear-gradient(135deg,rgba(167,139,250,0.1),rgba(245,158,11,0.06))',border:'2px solid rgba(167,139,250,0.5)',borderRadius:'16px',padding:'18px 20px',cursor:'pointer',display:'flex',alignItems:'center',gap:'16px',position:'relative'}},
+        React.createElement('div',{style:{position:'absolute',top:'-11px',right:'16px',background:'#F59E0B',color:'#04040c',fontSize:'10px',fontWeight:900,padding:'3px 12px',borderRadius:'10px',letterSpacing:'1px',fontFamily:'Courier New,monospace'}},'★ FEATURED'),
+        React.createElement('div',{style:{width:'48px',height:'48px',borderRadius:'50%',background:'rgba(167,139,250,0.18)',border:'2px solid #A78BFA',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},PlaySvg),
+        React.createElement('div',null,React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#A78BFA',marginBottom:'3px',fontFamily:'Courier New,monospace'}},isFr?'PRATIQUER VOS SOLOS':'PRACTICE YOUR SOLOS'),React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:'#F59E0B',marginBottom:'3px'}},'Sultans of Swing — Dire Straits'),React.createElement('div',{style:{fontSize:'11px',color:'#9090c8'}},isFr?'Tutoriel YouTube integre — internet requis':'YouTube tutorial — internet required'))
+      )
+    )
+  );
+}
+
+function SetupTab(p){
+  var isFr=p.lang==='fr';
+  var BTN={display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'12px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700,border:'none',outline:'none'};
+  var allKeys=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  var dia=getDiatonic(p.currKey||'C');
+  var keyMoodS=useState('major'),keyMood=keyMoodS[0],setKeyMood=keyMoodS[1];
+  var allPats=[{name:'I-IV-V',ci:[0,3,4],st:['rock','blues','country','folk','pop'],mood:'major',feel:'Classic anthem'},{name:'I-V-vi-IV',ci:[0,4,5,3],st:['pop','rock','country'],mood:'major',feel:'Happy / uplifting'},{name:'I-IV-vi-V',ci:[0,3,5,4],st:['pop','rock','soul'],mood:'major',feel:'Bittersweet'},{name:'I-vi-IV-V',ci:[0,5,3,4],st:['pop','jazz','folk','soul'],mood:'major',feel:'Nostalgic / warm'},{name:'I-V-IV',ci:[0,4,3],st:['blues','rock','country'],mood:'major',feel:'Raw / driving'},{name:'I-IV-I-V',ci:[0,3,0,4],st:['blues','folk','reggae'],mood:'major',feel:'Laid-back'},{name:'I-vi-ii-V',ci:[0,5,1,4],st:['jazz','pop','bossa'],mood:'major',feel:'Jazzy / sophisticated'},{name:'ii-V-I',ci:[1,4,0],st:['jazz','funk','latin','bossa'],mood:'major',feel:'Jazz resolution'},{name:'vi-IV-I-V',ci:[5,3,0,4],st:['pop','rock','latin'],mood:'minor',feel:'Cinematic / emotional'},{name:'i-VII-VI-VII',ci:[5,4,3,4],st:['rock','blues','latin'],mood:'minor',feel:'Dark tension'},{name:'i-VI-III-VII',ci:[5,3,2,4],st:['pop','rock','folk'],mood:'minor',feel:'Melancholic'},{name:'i-v-iv-i',ci:[5,4,3,5],st:['blues','folk','reggae'],mood:'minor',feel:'Heavy / soulful'},{name:'i-VII-VI-V',ci:[5,4,3,4],st:['rock','blues'],mood:'minor',feel:'Powerful / dramatic'}];
+  var curSt=p.style||'';
+  var pats=allPats.filter(function(pt){var stOk=!curSt||pt.st.indexOf(curSt)>=0;return stOk&&pt.mood===keyMood;});
+  if(pats.length===0)pats=allPats.filter(function(pt){return pt.mood===keyMood;}).slice(0,6);
+
+  return React.createElement('div',{style:{padding:'16px',maxWidth:'920px',margin:'0 auto'}},
+    React.createElement('div',{style:{fontSize:'22px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'20px',textAlign:'center',fontFamily:'Courier New,monospace'}},isFr?'PRATIQUE':'PRACTICE'),
+
+    React.createElement('div',{style:{marginBottom:'20px'}},
+      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'KEY'),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'8px',marginBottom:'12px'}},
+        allKeys.map(function(k){var act=p.currKey===k;return React.createElement('button',{key:k,onClick:function(){p.setCurrKey(k);},style:Object.assign({},BTN,{padding:'16px 8px',fontSize:'17px',background:act?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(act?'#34D399':'#1a1a3a'),color:act?'#34D399':'#c0c4d8'})},k);})
+      ),
+      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'8px',marginTop:'16px',fontFamily:'Courier New,monospace'}},'CAPO'),
+      React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
+        ['off',1,2,3,4,5,6,7].map(function(c){var cv=c==='off'?0:c;var isA=p.capo===cv;return React.createElement('button',{key:c,onClick:function(){p.setCapo(cv);},style:{padding:'10px 16px',borderRadius:'8px',border:'2px solid '+(isA?'#38BDF8':'#1a1a3a'),background:isA?'rgba(56,189,248,0.18)':'rgba(255,255,255,0.04)',color:isA?'#38BDF8':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},c==='off'?'off':c);})
+      )
+    ),
+
+    React.createElement('div',{style:{marginBottom:'20px'}},
+      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'STYLE'),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px'}},
+        ['pop','rock','folk','funk','blues','jazz','reggae','country'].map(function(s){var act=p.style===s;return React.createElement('button',{key:s,onClick:function(){p.setStyle(s);},style:Object.assign({},BTN,{padding:'14px 8px',fontSize:'13px',background:act?'rgba(167,139,250,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(act?'#A78BFA':'#1a1a3a'),color:act?'#A78BFA':'#c0c4d8',textTransform:'uppercase',letterSpacing:'1px'})},s);})
+      )
+    ),
+
+    React.createElement('div',{style:{marginBottom:'20px'}},
+      React.createElement('div',{style:{display:'flex',gap:'8px',alignItems:'center',marginBottom:'12px'}},
+        React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',fontFamily:'Courier New,monospace'}},isFr?'PROGRESSIONS':'PROGRESSIONS'),
+        ['major','minor'].map(function(m){var isA=keyMood===m;var col=m==='major'?'#F59E0B':'#A78BFA';return React.createElement('button',{key:m,onClick:function(){setKeyMood(m);},style:{padding:'6px 16px',borderRadius:'8px',border:'2px solid '+(isA?col:'#1a1a3a'),background:isA?col+'33':'rgba(255,255,255,0.04)',color:isA?col:'#9090c8',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer',textTransform:'uppercase'}},m);})
+      ),
+      React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'8px'}},
+        pats.map(function(pat,pi){
+          var chords=pat.ci.map(function(ix){return dia[ix];}).filter(Boolean);
+          var isSel=p.loadedProg&&p.loadedProg.length===chords.length&&chords.every(function(c,ci){return p.loadedProg[ci]&&p.loadedProg[ci].root===c.root;});
+          return React.createElement('button',{key:pi,onClick:function(){p.setLoadedProg(chords);},style:Object.assign({},BTN,{padding:'14px 16px',justifyContent:'space-between',background:isSel?'rgba(96,165,250,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(isSel?'#60A5FA':'#1a1a3a'),color:'#e0e4f0',flexDirection:'row'})},
+            React.createElement('div',{style:{display:'flex',flexDirection:'column',minWidth:'130px',textAlign:'left'}},
+              React.createElement('span',{style:{fontSize:'13px',color:'#60A5FA',fontWeight:700,fontFamily:'Courier New,monospace'}},pat.name),
+              pat.feel?React.createElement('span',{style:{fontSize:'11px',color:'#9090c8',fontStyle:'italic',marginTop:'1px'}},pat.feel):null
+            ),
+            React.createElement('div',{style:{display:'flex',gap:'6px'}},
+              chords.map(function(c,ci2){var col=nColor(c.root,p.currKey||'C');return React.createElement('span',{key:ci2,style:{background:col+'22',border:'1px solid '+col+'66',borderRadius:'6px',padding:'5px 12px',fontSize:'14px',fontWeight:700,color:col}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));})
+            )
+          );
+        })
+      )
+    ),
+
+    React.createElement('div',{style:{marginBottom:'20px'}},
+      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},isFr?'JOUER COMME UN ARTISTE':'PLAY LIKE AN ARTIST'),
+      React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'12px'}},
+        ARTISTS.map(function(a){return React.createElement('button',{key:a.id,onClick:function(){p.setArtist(p.artist&&p.artist.id===a.id?null:a);},style:{padding:'8px 14px',borderRadius:'8px',border:'2px solid '+(p.artist&&p.artist.id===a.id?a.color:a.color+'44'),background:p.artist&&p.artist.id===a.id?a.color+'22':'rgba(255,255,255,0.03)',color:a.color,fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},a.name);})
+      ),
+      p.artist?React.createElement('div',{style:{background:'#07071c',border:'2px solid '+p.artist.color+'44',borderRadius:'14px',padding:'16px'}},
+        React.createElement('div',{style:{fontSize:'16px',fontWeight:700,color:p.artist.color,marginBottom:'3px',fontFamily:'Courier New,monospace'}},p.artist.full),
+        React.createElement('div',{style:{fontSize:'12px',color:'#c0c4d8',fontStyle:'italic',marginBottom:'4px'}},p.artist.feel),
+        React.createElement('div',{style:{fontSize:'12px',color:'#c0c4d8',marginBottom:'6px'}},p.artist.technique),
+        React.createElement('div',{style:{fontSize:'11px',color:p.artist.color+'aa',marginBottom:'12px'}},'Keys: '+p.artist.homeKeys.join(', ')+' | Scale: '+p.artist.scale),
+        React.createElement('div',{style:{fontSize:'13px',color:'#F59E0B',marginBottom:'10px',fontFamily:'Courier New,monospace',fontWeight:700}},isFr?'Tapez dans l\'ordre :':'Tap chords in order ->'),
+        React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap'}},
+          (ARTIST_CHORDS[p.artist.id]||[]).map(function(c,ci){var col=nColor(c.root,p.currKey||'C');return React.createElement('button',{key:ci,onClick:function(){p.setLoadedProg((p.loadedProg||[]).concat([{root:c.root,quality:c.quality}]));},style:{padding:'12px 16px',borderRadius:'10px',border:'2px solid '+col,background:col+'33',color:col,fontFamily:'Courier New,monospace',fontSize:'17px',fontWeight:900,cursor:'pointer',minWidth:'54px',textAlign:'center'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));})
+        )
+      ):null
+    ),
+
+    p.loadedProg&&p.loadedProg.length>0?React.createElement('div',{style:{background:'rgba(52,211,153,0.06)',border:'2px solid rgba(52,211,153,0.35)',borderRadius:'16px',padding:'16px'}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}},
+        React.createElement('span',{style:{fontSize:'13px',fontWeight:900,color:'#34D399',fontFamily:'Courier New,monospace',letterSpacing:'2px'}},isFr?'VOTRE SELECTION':'YOUR SELECTION'),
+        React.createElement('button',{onClick:function(){p.setLoadedProg([]);},style:{padding:'6px 14px',borderRadius:'8px',border:'1px solid #F8717144',background:'transparent',color:'#F87171',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},'CLEAR')
+      ),
+      React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'14px'}},
+        p.loadedProg.map(function(c,ci){var col=nColor(c.root,p.currKey||'C');return React.createElement('div',{key:ci,style:{background:'#04040c',borderRadius:'10px',padding:'10px',border:'2px solid '+col+'44',textAlign:'center',minWidth:'64px'}},React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:col,marginBottom:'5px',fontFamily:'Courier New,monospace'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality)),React.createElement(ChordDiag,{root:c.root,qual:c.quality,size:'sm'}),React.createElement('span',{onClick:function(){p.setLoadedProg(p.loadedProg.filter(function(_,i2){return i2!==ci;}));},style:{fontSize:'11px',color:'#555',cursor:'pointer',display:'block',marginTop:'4px'}},'x'));})
+      ),
+      React.createElement('div',{style:{marginBottom:'14px'}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:'6px'}},React.createElement('span',{style:{fontSize:'12px',color:'#34D399',fontFamily:'Courier New,monospace',fontWeight:700}},'TEMPO'),React.createElement('span',{style:{fontSize:'16px',fontWeight:900,color:'#F59E0B',fontFamily:'Courier New,monospace'}},p.bpm+' BPM')),
+        React.createElement('input',{type:'range',min:40,max:200,value:p.bpm,onChange:function(e){p.setBpm(Number(e.target.value));},style:{width:'100%',accentColor:'#34D399'}})
+      ),
+      p.loadedProg.length<3?React.createElement('div',{style:{fontSize:'12px',color:'#F59E0B',fontFamily:'Courier New,monospace',textAlign:'center',padding:'8px',marginBottom:'10px',background:'rgba(245,158,11,0.08)',borderRadius:'8px',border:'1px solid rgba(245,158,11,0.3)'}},isFr?'Ajoutez '+(3-p.loadedProg.length)+' accord(s) pour enrichir !':'Add '+(3-p.loadedProg.length)+' more chord(s) for a richer loop!'):null,
+      React.createElement('button',{onClick:function(){p.goSolo(p.loadedProg);},style:Object.assign({},BTN,{width:'100%',padding:'22px',fontSize:'20px',letterSpacing:'2px',background:'linear-gradient(135deg,#34D399,#059669)',color:'#04040c'})},isFr?'CONFIRMER - ON JOUE !':'CONFIRM - LET\'S PLAY !')
+    ):null
+  );
+}
+
+function LockTab(p){
+  var isFr=p.lang==='fr';var chords=p.loopChords||[];var activeIdx=chords.length>0?(p.loopPos||0)%chords.length:0;
+  return React.createElement('div',{style:{padding:'12px',maxWidth:'520px',margin:'0 auto'}},
+    chords.length===0?React.createElement('div',{style:{padding:'40px',textAlign:'center',color:'#9090c8',fontFamily:'Courier New,monospace',fontSize:'14px'}},isFr?'Retournez sur PRACTICE.':'Go back to PRACTICE to select chords first.'):null,
+    chords.length>0?React.createElement('div',null,
+      React.createElement('div',{style:{fontSize:'11px',color:'#34D399',letterSpacing:'3px',fontFamily:'Courier New,monospace',fontWeight:700,marginBottom:'4px',textAlign:'center'}},(p.eKey||'')+' '+(p.style||'').toUpperCase()),
+      React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',textAlign:'center',marginBottom:'16px'}},'Check tempo and positions before going to solo.'),
+      React.createElement('div',{style:{display:'flex',gap:'10px',flexWrap:'wrap',justifyContent:'center',marginBottom:'16px'}},chords.map(function(c,ci){var isActive=ci===activeIdx;var col=p.nColor(c.root,p.eKey||'C');return React.createElement('div',{key:ci,style:{textAlign:'center',borderRadius:'14px',padding:'12px 10px',border:'3px solid '+(isActive?col:'#1a1a3a'),background:isActive?col+'18':'rgba(255,255,255,0.02)',minWidth:'80px',boxShadow:isActive?'0 0 20px '+col+'44':'none',transition:'all 0.15s'}},React.createElement('div',{style:{fontSize:'18px',fontWeight:900,color:isActive?col:'#444',fontFamily:'Courier New,monospace',marginBottom:'6px'}},p.dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality)),React.createElement(ChordDiag,{root:c.root,qual:c.quality,size:'sm'}));})),
+      React.createElement('div',{style:{display:'flex',gap:'6px',justifyContent:'center',marginBottom:'20px'}},chords.map(function(c,ci){var isActive=ci===activeIdx;var col=p.nColor(c.root,p.eKey||'C');return React.createElement('div',{key:ci,style:{width:'12px',height:'12px',borderRadius:'50%',background:isActive?col:'#1a1a3a',boxShadow:isActive?'0 0 8px '+col:'none',transition:'all 0.15s'}});})),
+      React.createElement('div',{style:{background:'#07071c',border:'1px solid #1a1a3a',borderRadius:'14px',padding:'16px',marginBottom:'16px'}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}},React.createElement('span',{style:{fontSize:'12px',color:'#9090c8',fontFamily:'Courier New,monospace',letterSpacing:'2px'}},'TEMPO'),React.createElement('span',{style:{fontSize:'22px',fontWeight:900,color:'#34D399',fontFamily:'Courier New,monospace'}},p.bpm+' BPM')),
+        React.createElement('input',{type:'range',min:40,max:200,value:p.bpm,onChange:function(e){p.setBpm(Number(e.target.value));},style:{width:'100%',accentColor:'#34D399',marginBottom:'12px',display:'block'}}),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap',marginBottom:'10px'}},
+        React.createElement('span',{style:{fontSize:'11px',fontWeight:700,color:'#c0c4d8',letterSpacing:'2px',fontFamily:'Courier New,monospace'}},'BEATS/CHORD:'),
+        [2,4,8,16].map(function(n){var isA=(p.bpc||4)===n;return React.createElement('button',{key:n,onClick:function(){p.setBpc(n);},style:{padding:'8px 14px',borderRadius:'8px',border:'2px solid '+(isA?'#F59E0B':'#1a1a3a'),background:isA?'rgba(245,158,11,0.2)':'rgba(255,255,255,0.04)',color:isA?'#F59E0B':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},n);})
+      ),
+
+        React.createElement('div',{style:{display:'flex',gap:'10px',justifyContent:'center'}},
+          React.createElement('button',{onClick:function(){p.setBpm(Math.max(40,p.bpm-5));},style:{padding:'10px 20px',borderRadius:'8px',border:'1px solid #1a1a3a',background:'rgba(255,255,255,0.04)',color:'#9090c8',fontSize:'16px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700}},'-5'),
+          React.createElement('button',{onClick:function(){p.setLooping(!p.isLooping);},style:{padding:'14px 40px',borderRadius:'12px',border:'none',background:p.isLooping?'linear-gradient(135deg,#F87171,#DC2626)':'linear-gradient(135deg,#34D399,#059669)',color:'#fff',fontWeight:900,fontSize:'20px',fontFamily:'Courier New,monospace',cursor:'pointer',letterSpacing:'3px'}},p.isLooping?'PAUSE':'PLAY'),
+          React.createElement('button',{onClick:function(){p.setBpm(Math.min(200,p.bpm+5));},style:{padding:'10px 20px',borderRadius:'8px',border:'1px solid #1a1a3a',background:'rgba(255,255,255,0.04)',color:'#9090c8',fontSize:'16px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700}},'+5')
+        )
+      ),
+      React.createElement('button',{onClick:function(){p.setTab('solo');},style:{width:'100%',padding:'14px',borderRadius:'12px',border:'2px solid #A78BFA',background:'rgba(167,139,250,0.1)',color:'#A78BFA',fontFamily:'Courier New,monospace',fontSize:'15px',fontWeight:700,cursor:'pointer',letterSpacing:'2px'}},'GO TO SOLO ->')
+    ):null
+  );
+}
+
+// ── NUMERAL FEEL LABELS ─────────────────────────────────────────────────────
+var NUMERAL_FEEL={
+  'I':'home','IV':'lift','V':'tension','vi':'emotional',
+  'ii':'smooth','iii':'bright','i':'home','iv':'dark',
+  'v':'resolve','bVII':'power','bIII':'dark lift',
+  'VI':'warm','III':'color','VII':'leading','II':'push'
+};
+
+// ── JAMTAB (MODIFIED: style selector moves below note lock; feel labels on suggestions) ──
+function JamTab(p){
+  var isFr=p.lang==='fr';
+  var SC={diatonic:'#34D399',borrowed:'#F59E0B',outside:'#F87171'};
+  return React.createElement('div',null,
+    React.createElement('div',{style:{display:'flex',gap:'8px',marginBottom:'14px'}},
+      React.createElement('button',{onClick:function(){p.setTab('setup');},style:{background:'transparent',border:'2px solid #2a2a50',color:'#c0c4d8',borderRadius:'9px',cursor:'pointer',fontFamily:'Courier New,monospace',padding:'6px 13px',fontSize:'12px'}},isFr?'<- retour':'<- practice'),
+      React.createElement('button',{onClick:function(){p.setHistory([]);p.setSugg(p.getSugg([],p.style));p.setPatInfo(null);p.setPNote(p.eKey);p.setPQual('maj');},style:{background:'rgba(248,113,113,0.1)',border:'2px solid rgba(248,113,113,0.45)',color:'#F87171',borderRadius:'9px',cursor:'pointer',fontFamily:'Courier New,monospace',padding:'6px 16px',fontSize:'12px',fontWeight:700,letterSpacing:'1px'}},isFr?'<> RESET':'<> RESET')
+    ),
+
+    React.createElement('div',{style:{background:'rgba(56,189,248,0.06)',border:'1.5px solid rgba(56,189,248,0.3)',borderRadius:'12px',padding:'14px',marginBottom:'14px'}},
+      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#38BDF8',marginBottom:'8px'}},isFr?'MODE JAM LIBRE':'FREE JAM MODE'),
+      React.createElement('div',{style:{fontSize:'13px',color:'#dde0f0',lineHeight:1.7}},isFr?'Jouez une note, l app detecte et suggere la suivante. Construisez accord par accord.':'Play a note, the app detects and suggests the next chord. Build your progression step by step.')
+    ),
+
+    React.createElement('div',{style:{background:'rgba(245,158,11,0.07)',border:'2px solid rgba(245,158,11,0.4)',borderRadius:'13px',padding:'15px',marginBottom:'14px'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'10px'}},
+        React.createElement('div',{style:{width:'32px',height:'32px',borderRadius:'50%',background:'rgba(245,158,11,0.2)',border:'2px solid #F59E0B',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:900,color:'#F59E0B',flexShrink:0}},'1'),
+        React.createElement('div',null,
+          React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',marginBottom:'2px'}},isFr?'COMMENCEZ ICI  -  JOUEZ UNE NOTE':'START HERE  -  PLAY A NOTE'),
+          React.createElement('div',{style:{fontSize:'13px',color:'#dde0f0',lineHeight:1.5}},isFr?'Jouez n importe quelle note. L app la detecte et pre-selectionne les meilleurs accords.':'Play any note. The app detects it and pre-selects the best chords.'))
+      ),
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px',flexWrap:'wrap'}},
+        React.createElement('div',{style:{fontSize:'88px',fontWeight:900,lineHeight:0.85,color:p.detected?'#F59E0B':'#252540',fontFamily:'Impact,monospace',minWidth:'80px',transition:'color 0.3s'}},p.detected||(p.isListen?'...':'?')),
+        React.createElement('div',{style:{flex:1,fontSize:'14px',color:p.isListen?(p.detected?'#F59E0B':'#34D399'):'#c0c4d8',fontWeight:700}},
+          p.isListen?(p.detected?dn(p.detected,p.lang,true)+(isFr?' detectee !':' detected!'):(isFr?'En ecoute...':'Listening...')):(isFr?'Appuyez DETECTER ou choisissez ci-dessous.':'Tap DETECT or pick manually below.')
+        ),
+        React.createElement('button',{onClick:p.isListen?p.stopMic:p.startMic,style:{background:p.isListen?'linear-gradient(135deg,#F87171,#DC2626)':'linear-gradient(135deg,#F59E0B,#D97706)',color:'#020208',fontWeight:900,border:'none',borderRadius:'10px',cursor:'pointer',fontFamily:'Courier New,monospace',padding:'13px 22px',fontSize:'15px',flexShrink:0}},p.isListen?(isFr?'STOP':'STOP'):(isFr?'DETECTER':'DETECT')))
+    ),
+
+    !p.detected&&p.history.length===0?React.createElement('div',{style:{background:'rgba(245,158,11,0.06)',border:'1px dashed rgba(245,158,11,0.3)',borderRadius:'12px',padding:'16px',marginBottom:'14px',textAlign:'center'}},
+      React.createElement('div',{style:{marginBottom:'12px',display:'flex',justifyContent:'center'}},
+        React.createElement('svg',{width:'90',height:'120',viewBox:'0 0 680 520',fill:'none',xmlns:'http://www.w3.org/2000/svg'},
+          React.createElement('defs',null,
+            React.createElement('radialGradient',{id:'sgBody',cx:'42%',cy:'38%',r:'58%'},
+              React.createElement('stop',{offset:'0%',stopColor:'#FF5555'}),
+              React.createElement('stop',{offset:'40%',stopColor:'#E01010'}),
+              React.createElement('stop',{offset:'75%',stopColor:'#AA0000'}),
+              React.createElement('stop',{offset:'100%',stopColor:'#6B0000'})
+            ),
+            React.createElement('radialGradient',{id:'sgShine',cx:'32%',cy:'28%',r:'45%'},
+              React.createElement('stop',{offset:'0%',stopColor:'#FFAAAA',stopOpacity:'0.55'}),
+              React.createElement('stop',{offset:'100%',stopColor:'#FF4444',stopOpacity:'0'})
+            ),
+            React.createElement('linearGradient',{id:'sgNeck',x1:'0%',y1:'0%',x2:'100%',y2:'0%'},
+              React.createElement('stop',{offset:'0%',stopColor:'#8B5E3C'}),
+              React.createElement('stop',{offset:'50%',stopColor:'#C8864A'}),
+              React.createElement('stop',{offset:'100%',stopColor:'#7A4F2D'})
+            ),
+            React.createElement('radialGradient',{id:'sgKnob',cx:'35%',cy:'30%',r:'60%'},
+              React.createElement('stop',{offset:'0%',stopColor:'#CCCCCC'}),
+              React.createElement('stop',{offset:'100%',stopColor:'#666666'})
+            )
+          ),
+          React.createElement('path',{d:'M340 170 C340 170 310 162 295 155 C275 146 268 133 272 120 C276 107 290 104 300 110 C308 115 308 125 300 130 C294 133 290 128 294 122 C296 118 302 120 300 126 M340 170 C340 170 368 158 382 148 C400 135 408 118 400 106 C392 94 376 96 370 106 C364 114 368 126 378 128 C386 130 390 122 384 116 M300 126 C295 130 288 142 282 160 C272 185 268 210 265 235 C260 270 258 300 260 325 C263 360 272 390 290 412 C308 434 330 448 355 452 C378 456 402 450 420 436 C440 421 452 400 458 375 C464 350 462 322 456 298 C450 272 440 250 428 232 C416 214 404 198 396 182 C390 170 384 158 384 148',fill:'url(#sgBody)',stroke:'#880000',strokeWidth:'2.5'}),
+          React.createElement('path',{d:'M300 126 C295 130 288 142 282 160 C272 185 268 210 265 235 C260 270 258 300 260 325 C263 360 272 390 290 412 C308 434 330 448 355 452 C378 456 402 450 420 436 C440 421 452 400 458 375 C464 350 462 322 456 298 C450 272 440 250 428 232 C416 214 404 198 396 182 C390 170 384 158 384 148 C368 158 340 170 340 170 C310 162 295 155 300 126',fill:'url(#sgShine)'}),
+          React.createElement('rect',{x:'328',y:'44',width:'24',height:'132',rx:'4',fill:'url(#sgNeck)',stroke:'#6B3F1E',strokeWidth:'1.5'}),
+          React.createElement('line',{x1:'328',y1:'72', x2:'352',y2:'72', stroke:'#F0C875',strokeWidth:'1',opacity:'0.9'}),
+          React.createElement('line',{x1:'328',y1:'88', x2:'352',y2:'88', stroke:'#F0C875',strokeWidth:'1',opacity:'0.9'}),
+          React.createElement('line',{x1:'328',y1:'104',x2:'352',y2:'104',stroke:'#F0C875',strokeWidth:'1',opacity:'0.9'}),
+          React.createElement('line',{x1:'328',y1:'118',x2:'352',y2:'118',stroke:'#F0C875',strokeWidth:'1',opacity:'0.9'}),
+          React.createElement('line',{x1:'328',y1:'132',x2:'352',y2:'132',stroke:'#F0C875',strokeWidth:'1',opacity:'0.9'}),
+          React.createElement('line',{x1:'328',y1:'146',x2:'352',y2:'146',stroke:'#F0C875',strokeWidth:'1',opacity:'0.9'}),
+          React.createElement('circle',{cx:'340',cy:'80', r:'2.5',fill:'#F0C875',opacity:'0.8'}),
+          React.createElement('circle',{cx:'340',cy:'96', r:'2.5',fill:'#F0C875',opacity:'0.8'}),
+          React.createElement('circle',{cx:'340',cy:'111',r:'2.5',fill:'#F0C875',opacity:'0.8'}),
+          React.createElement('circle',{cx:'340',cy:'125',r:'2.5',fill:'#F0C875',opacity:'0.8'}),
+          React.createElement('path',{d:'M326 44 C326 38 330 32 340 30 C350 32 354 38 354 44',fill:'url(#sgNeck)',stroke:'#6B3F1E',strokeWidth:'1.5'}),
+          React.createElement('circle',{cx:'324',cy:'34',r:'4',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'324',cy:'44',r:'4',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'324',cy:'54',r:'4',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'356',cy:'34',r:'4',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'356',cy:'44',r:'4',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'356',cy:'54',r:'4',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('line',{x1:'324',y1:'34',x2:'316',y2:'34',stroke:'#AAA',strokeWidth:'2'}),
+          React.createElement('line',{x1:'324',y1:'44',x2:'316',y2:'44',stroke:'#AAA',strokeWidth:'2'}),
+          React.createElement('line',{x1:'324',y1:'54',x2:'316',y2:'54',stroke:'#AAA',strokeWidth:'2'}),
+          React.createElement('line',{x1:'356',y1:'34',x2:'364',y2:'34',stroke:'#AAA',strokeWidth:'2'}),
+          React.createElement('line',{x1:'356',y1:'44',x2:'364',y2:'44',stroke:'#AAA',strokeWidth:'2'}),
+          React.createElement('line',{x1:'356',y1:'54',x2:'364',y2:'54',stroke:'#AAA',strokeWidth:'2'}),
+          React.createElement('rect',{x:'327',y:'62',width:'26',height:'4',rx:'1',fill:'#F5F0E0',stroke:'#CCC',strokeWidth:'0.8'}),
+          React.createElement('line',{x1:'332',y1:'34',x2:'326',y2:'400',stroke:'#DDDDDD',strokeWidth:'0.7',opacity:'0.7'}),
+          React.createElement('line',{x1:'335',y1:'34',x2:'330',y2:'400',stroke:'#DDDDDD',strokeWidth:'0.7',opacity:'0.7'}),
+          React.createElement('line',{x1:'338',y1:'34',x2:'334',y2:'400',stroke:'#DDDDDD',strokeWidth:'0.8',opacity:'0.7'}),
+          React.createElement('line',{x1:'341',y1:'34',x2:'338',y2:'400',stroke:'#DDDDDD',strokeWidth:'0.9',opacity:'0.7'}),
+          React.createElement('line',{x1:'344',y1:'34',x2:'344',y2:'400',stroke:'#DDDDDD',strokeWidth:'1.0',opacity:'0.7'}),
+          React.createElement('line',{x1:'347',y1:'34',x2:'350',y2:'400',stroke:'#DDDDDD',strokeWidth:'1.1',opacity:'0.7'}),
+          React.createElement('path',{d:'M318 176 C310 180 298 200 292 230 C286 260 284 290 286 318 C288 340 295 360 306 374 C318 388 332 392 348 390 C362 388 374 378 382 364 C390 348 394 326 392 304 C390 280 384 256 376 236 C368 216 358 198 350 186 C344 178 338 174 330 174 Z',fill:'#F0EEE8',stroke:'#CCC',strokeWidth:'1.5',opacity:'0.92'}),
+          React.createElement('rect',{x:'308',y:'208',width:'64',height:'16',rx:'3',fill:'#1a1a1a',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('rect',{x:'308',y:'280',width:'64',height:'16',rx:'3',fill:'#1a1a1a',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('rect',{x:'308',y:'338',width:'64',height:'16',rx:'3',fill:'#1a1a1a',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'316',cy:'216',r:'2',fill:'#888'}),React.createElement('circle',{cx:'323',cy:'216',r:'2',fill:'#888'}),React.createElement('circle',{cx:'330',cy:'216',r:'2',fill:'#888'}),React.createElement('circle',{cx:'337',cy:'216',r:'2',fill:'#888'}),React.createElement('circle',{cx:'344',cy:'216',r:'2',fill:'#888'}),React.createElement('circle',{cx:'351',cy:'216',r:'2',fill:'#888'}),
+          React.createElement('circle',{cx:'316',cy:'288',r:'2',fill:'#888'}),React.createElement('circle',{cx:'323',cy:'288',r:'2',fill:'#888'}),React.createElement('circle',{cx:'330',cy:'288',r:'2',fill:'#888'}),React.createElement('circle',{cx:'337',cy:'288',r:'2',fill:'#888'}),React.createElement('circle',{cx:'344',cy:'288',r:'2',fill:'#888'}),React.createElement('circle',{cx:'351',cy:'288',r:'2',fill:'#888'}),
+          React.createElement('circle',{cx:'316',cy:'346',r:'2',fill:'#888'}),React.createElement('circle',{cx:'323',cy:'346',r:'2',fill:'#888'}),React.createElement('circle',{cx:'330',cy:'346',r:'2',fill:'#888'}),React.createElement('circle',{cx:'337',cy:'346',r:'2',fill:'#888'}),React.createElement('circle',{cx:'344',cy:'346',r:'2',fill:'#888'}),React.createElement('circle',{cx:'351',cy:'346',r:'2',fill:'#888'}),
+          React.createElement('rect',{x:'370',y:'230',width:'8',height:'28',rx:'3',fill:'#CCC',stroke:'#999',strokeWidth:'0.8'}),
+          React.createElement('rect',{x:'372',y:'237',width:'4',height:'8',rx:'1',fill:'#888'}),
+          React.createElement('circle',{cx:'370',cy:'308',r:'8',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'370',cy:'328',r:'8',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'370',cy:'348',r:'8',fill:'url(#sgKnob)',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('rect',{x:'318',y:'390',width:'64',height:'22',rx:'2',fill:'#C0C0C0',stroke:'#999',strokeWidth:'1.2'}),
+          React.createElement('line',{x1:'326',y1:'390',x2:'326',y2:'412',stroke:'#999',strokeWidth:'0.7'}),
+          React.createElement('line',{x1:'332',y1:'390',x2:'332',y2:'412',stroke:'#999',strokeWidth:'0.7'}),
+          React.createElement('line',{x1:'338',y1:'390',x2:'338',y2:'412',stroke:'#999',strokeWidth:'0.7'}),
+          React.createElement('line',{x1:'344',y1:'390',x2:'344',y2:'412',stroke:'#999',strokeWidth:'0.7'}),
+          React.createElement('line',{x1:'350',y1:'390',x2:'350',y2:'412',stroke:'#999',strokeWidth:'0.7'}),
+          React.createElement('line',{x1:'356',y1:'390',x2:'356',y2:'412',stroke:'#999',strokeWidth:'0.7'}),
+          React.createElement('line',{x1:'382',y1:'400',x2:'410',y2:'430',stroke:'#CCC',strokeWidth:'2.5',strokeLinecap:'round'}),
+          React.createElement('circle',{cx:'295',cy:'360',r:'6',fill:'#C0C0C0',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'295',cy:'360',r:'3',fill:'#333'}),
+          React.createElement('circle',{cx:'340',cy:'458',r:'5',fill:'#C0C0C0',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('circle',{cx:'278',cy:'192',r:'5',fill:'#C0C0C0',stroke:'#888',strokeWidth:'1'}),
+          React.createElement('path',{d:'M300 130 C295 140 284 165 278 195 C270 230 265 265 264 298 C262 335 266 370 280 400',fill:'none',stroke:'#FF8888',strokeWidth:'1.5',opacity:'0.35'})
+        )
+      ),
+      React.createElement('div',{style:{fontSize:'15px',fontWeight:700,color:'#F59E0B',marginBottom:'6px'}},isFr?'Jouez une note pour commencer':'Play a note to get started'),
+      React.createElement('div',{style:{fontSize:'13px',color:'#c0c4d8',lineHeight:1.6}},isFr?'Appuyez DETECTER et jouez n importe quelle note sur votre guitare. Les options d accords apparaitront automatiquement.':'Tap DETECT and play any note on your guitar. Chord options will appear automatically.')):null,
+
+    p.detected||p.history.length>0?React.createElement('div',{style:{background:'#07071c',border:'1px solid #18183a',borderRadius:'13px',padding:'14px',marginBottom:'13px'}},
+      p.detected?React.createElement('div',{style:{background:'rgba(245,158,11,0.1)',border:'2px solid rgba(245,158,11,0.5)',borderRadius:'10px',padding:'12px 16px',marginBottom:'14px',display:'flex',alignItems:'center',gap:'14px'}},
+        React.createElement('div',{style:{fontSize:'44px',fontWeight:900,color:'#F59E0B',fontFamily:'Courier New,monospace',lineHeight:1}},dn(p.detected,p.lang,true)),
+        React.createElement('div',null,React.createElement('div',{style:{fontSize:'12px',color:'#9090c8',letterSpacing:'2px',fontFamily:'Courier New,monospace',marginBottom:'4px'}},'NOTE LOCKED'),React.createElement('div',{style:{fontSize:'14px',color:'#e0e4f0',fontWeight:700}},isFr?'Choisissez votre accord ci-dessous :':'Choose your chord below -- most likely first'))
+      ):null,
+
+      React.createElement('div',{style:{background:'rgba(56,189,248,0.06)',border:'1.5px solid rgba(56,189,248,0.25)',borderRadius:'10px',padding:'10px 12px',marginBottom:'12px'}},
+        React.createElement('div',{style:{fontSize:'11px',fontWeight:700,color:'#38BDF8',letterSpacing:'2px',marginBottom:'8px'}},isFr?'VOTRE STYLE:':'YOUR STYLE:'),
+        React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
+          ['pop','rock','folk','funk','soul','blues','jazz','bossa','reggae','country','classic'].map(function(s){
+            var isSel=p.style===s;
+            return React.createElement('button',{key:s,onClick:function(){p.setStyle(s);if(p.pNote){p.setSugg(getSugg([{root:p.pNote,quality:p.pQual||'maj'}],s));}else{p.setSugg(getSugg([],s));}},
+              style:{padding:'8px 12px',borderRadius:'8px',cursor:'pointer',textTransform:'uppercase',
+                border:'2px solid '+(isSel?'#38BDF8':'#1e1e40'),
+                background:isSel?'rgba(56,189,248,0.18)':'#0c0c20',
+                color:isSel?'#38BDF8':'#c0c4d8',
+                fontSize:'12px',fontWeight:700,fontFamily:'Courier New,monospace',
+                boxShadow:isSel?'0 0 10px rgba(56,189,248,0.3)':'none'}
+            },s);
+          })
+        )
+      ),
+
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}},
+        React.createElement('div',{style:{width:'32px',height:'32px',borderRadius:'50%',background:'rgba(52,211,153,0.2)',border:'2px solid #34D399',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:900,color:'#34D399',flexShrink:0}},'2'),
+        React.createElement('div',{style:{fontSize:'14px',fontWeight:700,color:'#e8eaf8'}},isFr?'CHOISISSEZ VOTRE ACCORD':'CHOOSE YOUR CHORD')
+      ),
+      React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:'#34D399',letterSpacing:'2px',marginBottom:'5px'}},isFr?'A  -  NOTE / ACCORD':'A  -  NOTE / CHORD'),
+      React.createElement('div',{style:{display:'flex',gap:'5px',flexWrap:'wrap',marginBottom:'10px'}},
+        p.diatChords.map(function(c,i){
+          var color=nColor(c.root,p.eKey),isPicked=p.pNote===c.root&&p.pQual===c.quality;
+          return React.createElement('div',{key:i,onClick:function(){p.setPNote(c.root);p.setPQual(c.quality);},style:{flex:'0 0 auto',background:isPicked?color+'22':'#0c0c20',border:'2px solid '+(isPicked?color:'#34D39944'),borderRadius:'10px',padding:'9px 11px',textAlign:'center',cursor:'pointer',minWidth:'58px'}},
+            React.createElement('div',{style:{fontSize:'20px',fontWeight:900,color:color,lineHeight:1,fontFamily:'Courier New,monospace'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality)),
+            React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:color,marginTop:'3px',fontFamily:'Georgia,serif'}},c.numeral),
+            React.createElement('div',{style:{fontSize:'9px',fontWeight:700,color:color+'99',marginTop:'2px'}},QUAL[c.quality]?(isFr?(QUAL[c.quality].vibeFr||QUAL[c.quality].vibe):QUAL[c.quality].vibe):(isFr?'lumineux':'bright')),
+            React.createElement('div',{style:{fontSize:'8px',color:'#c0c4d8',marginTop:'1px'}},QUAL[c.quality]?(isFr?(QUAL[c.quality].moodFr||QUAL[c.quality].mood):QUAL[c.quality].mood):'')
+          );
+        })
+      ),
+      React.createElement('button',{onClick:function(){p.setShowOut(function(v){return !v;});},style:{background:'transparent',border:'none',color:p.showOut?'#F59E0B':'#c0c4d8',cursor:'pointer',fontSize:'12px',fontFamily:'Courier New,monospace',fontWeight:700,padding:'4px 0',marginBottom:'8px'}},p.showOut?(isFr?'masquer autres accords':'hide more chords'):(isFr?'+ autres accords (empruntes, chromatiques)':'+ more chords (borrowed, chromatic)')),
+      p.showOut?React.createElement('div',{style:{background:'#0a0a1e',borderRadius:'10px',padding:'10px',marginBottom:'10px'}},
+        React.createElement('div',{style:{fontSize:'12px',color:'#c0c4d8',marginBottom:'8px'}},isFr?'Vert = dans la tonalite. Ambre = emprunte. Rouge = hors tonalite.':'Green = in key. Amber = borrowed. Red = outside key.'),
+        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:'5px'}},NOTES.map(function(n){var st=getDiatStatus(n,p.pQual,p.eKey);var color=SC[st]||'#888';var isSel=p.pNote===n;return React.createElement('button',{key:n,onClick:function(){p.setPNote(n);},style:{padding:'9px 12px',borderRadius:'8px',cursor:'pointer',fontWeight:700,fontSize:'15px',minWidth:'46px',fontFamily:'Courier New,monospace',border:'2px solid '+(isSel?color:color+'55'),background:isSel?color+'22':'#0e0e20',color:isSel?color:color+'99'}},dn(n,p.lang,true));}))
+      ):null,
+      React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:'#F59E0B',letterSpacing:'2px',marginBottom:'5px'}},isFr?'B  -  COULEUR / TYPE':'B  -  COLOR / TYPE'),
+      React.createElement('div',{style:{display:'flex',gap:'5px',flexWrap:'wrap',marginBottom:'12px'}},
+        Object.entries(QUAL).map(function(entry){
+          var q=entry[0],info=entry[1],isSel=p.pQual===q,color=nColor(p.pNote,p.eKey);
+          return React.createElement('div',{key:q,onClick:function(){p.setPQual(q);},style:{background:isSel?color+'1a':'#0e0e20',border:'2px solid '+(isSel?color:'#252550'),borderRadius:'9px',padding:'7px 10px',cursor:'pointer',minWidth:'80px'}},
+            React.createElement('div',{style:{fontSize:'14px',fontWeight:700,color:isSel?color:'#c0c4d8',fontFamily:'Courier New,monospace',lineHeight:1}},dn(p.pNote,p.lang,true)+info.s),
+            React.createElement('div',{style:{fontSize:'10px',color:isSel?color:'#c0c4d8',marginTop:'2px'}},info.name)
+          );
+        })
+      ),
+      React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:'#34D399',letterSpacing:'2px',marginBottom:'8px'}},isFr?'C  -  CONFIRMER ET AJOUTER':'C  -  CONFIRM AND ADD'),
+      React.createElement('div',{style:{display:'flex',gap:'9px',alignItems:'stretch'}},
+        React.createElement('div',{style:{flex:1,background:'#07071c',border:'2px solid '+nColor(p.pNote,p.eKey)+'77',borderRadius:'11px',padding:'12px 14px'}},
+          React.createElement('div',{style:{fontSize:'26px',fontWeight:900,color:nColor(p.pNote,p.eKey),lineHeight:1,fontFamily:'Courier New,monospace',marginBottom:'4px'}},dn(p.pNote,p.lang)+(QUAL[p.pQual]?QUAL[p.pQual].s:'')),
+          React.createElement('div',{style:{fontSize:'11px',color:nColor(p.pNote,p.eKey),marginBottom:'8px',fontWeight:700}},getDiatStatus(p.pNote,p.pQual,p.eKey)==='diatonic'?(isFr?'s adapte parfaitement':'fits perfectly'):getDiatStatus(p.pNote,p.pQual,p.eKey)==='borrowed'?(isFr?'emprunte - ajoute couleur':'borrowed - adds color'):(isFr?'hors tonalite':'outside key')),
+          React.createElement(ChordDiag,{root:p.pNote,qual:p.pQual,size:'lg'})
+        ),
+        React.createElement('button',{onClick:function(){p.addChord(p.pNote,p.pQual);},style:{background:'linear-gradient(135deg,#F59E0B,#D97706)',color:'#020208',fontWeight:900,border:'none',borderRadius:'11px',cursor:'pointer',fontFamily:'Courier New,monospace',padding:'0 20px',fontSize:'20px',whiteSpace:'nowrap'}},isFr?'ADD +':'ADD +')
+      )
+    ):null,
+
+    p.history.length>0?React.createElement('div',{style:{background:'#07071c',border:'1px solid #1a1a35',borderRadius:'13px',padding:'14px',marginBottom:'13px'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}},
+        React.createElement('div',{style:{width:'32px',height:'32px',borderRadius:'50%',background:'rgba(167,139,250,0.2)',border:'2px solid #A78BFA',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:900,color:'#A78BFA',flexShrink:0}},'3'),
+        React.createElement('div',{style:{fontSize:'14px',fontWeight:700,color:'#e8eaf8'}},isFr?'ACCORD SUIVANT LE PLUS PROBABLE':'MOST LIKELY NEXT CHORD')
+      ),
+      React.createElement('div',{style:{fontSize:'13px',color:'#dde0f0',marginBottom:'10px'}},isFr?'Base sur ce que vous avez joue, voici ce qui s enchaine le mieux.':'Based on what you played, here is what flows best next. Tap to pre-select.'),
+      p.sugg.length>0?React.createElement('div',{style:{display:'flex',gap:'7px',flexWrap:'wrap'}},
+        p.sugg.map(function(s,i){
+          var note=n2note(s.numeral,p.eKey);
+          var isM=s.numeral!==s.numeral.toUpperCase()&&s.numeral===s.numeral.toLowerCase();
+          var nd=note?(dn(note,p.lang)+(isM?'m':'')):'?';
+          var color=nColor(note||p.eKey,p.eKey);
+          var isTop=i===0;
+          var feelKey=s.numeral.replace(/7|maj7|m7/g,'');
+          var feelLabel=NUMERAL_FEEL[feelKey]||'';
+          return React.createElement('div',{key:i,onClick:function(){if(note){p.setPNote(note);p.setPQual(isM?'min':'maj');}},
+            style:{flex:1,minWidth:'75px',background:isTop?'#160f40':'#0c0c20',border:'2px solid '+(isTop?color:'#1e1e40'),borderRadius:'12px',padding:'12px 8px',cursor:'pointer',textAlign:'center',position:'relative'}},
+            isTop?React.createElement('div',{style:{position:'absolute',top:'-8px',left:'50%',transform:'translateX(-50%)',background:'#A78BFA',color:'#050510',fontSize:'9px',fontWeight:900,padding:'2px 7px',borderRadius:'4px',whiteSpace:'nowrap'}},isFr?'MEILLEUR':'BEST'):null,
+            React.createElement('div',{style:{fontSize:'26px',fontWeight:900,color:color,lineHeight:1,fontFamily:'Courier New,monospace'}},nd),
+            React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:color+'88',marginTop:'4px'}},s.numeral),
+            feelLabel?React.createElement('div',{style:{fontSize:'10px',color:color+'77',marginTop:'3px',fontStyle:'italic',fontFamily:'Georgia,serif'}},feelLabel):null
+          );
+        })
+      ):null
+    ):null,
+
+    p.history.length>0?React.createElement('div',{style:{marginBottom:'13px'}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'7px'}},
+        React.createElement('div',{style:{fontSize:'11px',fontWeight:700,color:'#c0c4d8',letterSpacing:'2.5px'}},isFr?'VOTRE PROGRESSION':'YOUR PROGRESSION'),
+        React.createElement('div',{style:{display:'flex',gap:'7px'}},
+          React.createElement('button',{onClick:p.undoChord,style:{fontSize:'11px',fontWeight:700,color:'#F59E0B',background:'rgba(245,158,11,0.1)',border:'1.5px solid rgba(245,158,11,0.4)',borderRadius:'7px',padding:'4px 10px',cursor:'pointer',fontFamily:'Courier New,monospace'}},isFr?'annuler':'undo'),
+          React.createElement('button',{onClick:function(){p.setHistory([]);p.setSugg(getSugg([],p.style));p.setPatInfo(null);},style:{fontSize:'11px',color:'#c0c4d8',background:'none',border:'none',cursor:'pointer',fontFamily:'Courier New,monospace'}},isFr?'effacer':'clear'))
+      ),
+      React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
+        p.history.map(function(c,i){var color=nColor(c.root,c.key||c.root),active=i===p.history.length-1;return React.createElement('div',{key:c.id,style:{background:active?color+'22':'#0e0e20',border:'2px solid '+(active?color:'#252550'),borderRadius:'10px',padding:'8px 12px',textAlign:'center',minWidth:'54px'}},React.createElement('div',{style:{fontSize:'18px',fontWeight:900,color:color,lineHeight:1,fontFamily:'Courier New,monospace'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality)),React.createElement('div',{style:{fontSize:'14px',fontWeight:700,color:color,marginTop:'3px',fontFamily:'Georgia,serif'}},c.numeral));})
+      ),
+      p.history.length===2?React.createElement('div',{style:{background:'rgba(56,189,248,0.07)',border:'1px solid rgba(56,189,248,0.3)',borderRadius:'9px',padding:'11px 14px',marginTop:'10px'}},React.createElement('div',{style:{fontSize:'13px',color:'#dde0f0',lineHeight:1.6,marginBottom:'8px'}},isFr?'Vous avez 2 accords  -  suffisant ! Ajoutez 1-2 accords de plus pour enrichir (3-4 est ideal).':'You have 2 chords  -  enough for a loop! Adding 1-2 more makes it richer (3-4 is ideal).'),React.createElement('div',{style:{fontSize:'12px',color:'#38BDF8',fontWeight:700}},isFr?'Pas sur de la direction ? Le score % ci-dessous vous guide vers les patterns musicaux connus.':'Not sure where to go? The % score below guides you toward known musical patterns.')):null,
+      p.patInfo&&p.patInfo.score>0?React.createElement('div',{style:{marginTop:'10px',background:'#07071c',border:'1px solid rgba(245,158,11,0.25)',borderRadius:'10px',padding:'12px 14px'}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'8px'}},React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontSize:'10px',color:'#c0c4d8',letterSpacing:'2px',marginBottom:'2px'}},isFr?'PATTERN DETECTE':'PATTERN MATCH'),React.createElement('div',{style:{fontSize:'15px',fontWeight:700,color:'#e8eaf8'}},p.patInfo.pattern.name),React.createElement('div',{style:{fontSize:'12px',color:'#c0c4d8'}},isFr?p.patInfo.pattern.descFr:p.patInfo.pattern.desc)),React.createElement('div',{style:{textAlign:'center',minWidth:'60px'}},React.createElement('div',{style:{fontSize:'32px',fontWeight:900,color:p.patInfo.score>0.6?'#34D399':p.patInfo.score>0.3?'#F59E0B':'#F87171'}},Math.round(p.patInfo.score*100)+'%'),React.createElement('div',{style:{fontSize:'10px',color:'#c0c4d8'}},p.patInfo.score>0.6?(isFr?'excellent':'excellent'):p.patInfo.score>0.3?(isFr?'bon match':'good match'):(isFr?'faible':'low')))),
+        React.createElement(SuggestionBox,{patInfo:p.patInfo,history:p.history,eKey:p.eKey,lang:p.lang,dn:dn})
+      ):null
+    ):null,
+
+    p.history.length>=2?React.createElement('div',{style:{marginBottom:'10px',display:'flex',flexDirection:'column'}},
+      React.createElement('div',{style:{fontSize:'11px',color:'#c0c4d8',marginBottom:'5px'}},isFr?'Nom de la progression / chanson:':'Name this progression / song:'),
+      React.createElement('input',{type:'text',value:p.slName||'',onChange:function(e){p.setSlName(e.target.value);},placeholder:isFr?'ex: Intro rock en Sol...':'e.g. Rock intro in G...',style:{width:'100%',boxSizing:'border-box',background:'#0a0a1e',border:'1.5px solid rgba(245,158,11,0.4)',color:'#e0e4f0',borderRadius:'8px',padding:'10px 13px',fontFamily:'Courier New,monospace',fontSize:'13px',outline:'none',marginBottom:'8px'}}),
+      React.createElement('div',{style:{display:'flex',gap:'7px'}},
+        React.createElement('button',{onClick:function(){var nm=(p.slName&&p.slName.trim()!=='')?p.slName:(isFr?'Jam ':'Jam ')+(p.saved?p.saved.length+1:1);p.setSaved(function(prev){return (prev||[]).concat([{id:Date.now(),name:nm,chords:p.history.slice(),key:p.eKey,style:p.style,date:new Date().toLocaleDateString()}]);});},style:{flex:1,padding:'10px',borderRadius:'9px',cursor:'pointer',background:'rgba(52,211,153,0.1)',border:'1.5px solid rgba(52,211,153,0.4)',color:'#34D399',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700}},isFr?'SAUVEGARDER':'SAVE PROGRESSION'),
+        React.createElement('button',{onClick:function(){p.setShowSaved2(function(v){return !v;});},style:{padding:'10px 13px',borderRadius:'9px',cursor:'pointer',background:p.showSaved2?'rgba(52,211,153,0.2)':'rgba(52,211,153,0.06)',border:'1.5px solid rgba(52,211,153,0.3)',color:'#34D399',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700}},'PROGS ('+(p.saved?p.saved.length:0)+')')
+      ),
+      p.showSaved2&&p.saved&&p.saved.length>0?React.createElement('div',{style:{background:'#07071c',border:'1px solid #18183a',borderRadius:'12px',padding:'14px',marginTop:'10px'}},
+        React.createElement('div',{style:{fontSize:'11px',fontWeight:700,color:'#34D399',letterSpacing:'2.5px',marginBottom:'10px'}},isFr?'MES PROGRESSIONS':'MY PROGRESSIONS'),
+        React.createElement('div',{style:{display:'flex',flexDirection:'column'}},p.saved.map(function(jam,i){return React.createElement('div',{key:jam.id,style:{display:'flex',alignItems:'center',gap:'9px',padding:'8px 0',borderBottom:i<p.saved.length-1?'1px solid #12122a':'none'}},
+          React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:'#e0e4f0',marginBottom:'4px'}},jam.name),React.createElement('div',{style:{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'3px'}},(jam.chords||[]).map(function(c,ci){var color=p.nColor(c.root,c.key||jam.key);return React.createElement('span',{key:ci,style:{background:color+'1a',border:'1px solid '+color+'44',borderRadius:'4px',padding:'2px 6px',fontSize:'11px',fontWeight:700,color:color,fontFamily:'Courier New,monospace'}},p.dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));})),React.createElement('div',{style:{fontSize:'10px',color:'#9090c8'}},jam.date+'  -  '+p.dn(jam.key,p.lang,true)+' '+jam.style)),
+          React.createElement('button',{onClick:function(){p.loadJam(jam);},style:{background:'rgba(245,158,11,0.15)',border:'1.5px solid rgba(245,158,11,0.4)',color:'#F59E0B',borderRadius:'7px',padding:'5px 10px',cursor:'pointer',fontSize:'11px',fontWeight:700,fontFamily:'Courier New,monospace'}},isFr?'charger':'load'),
+          React.createElement('button',{onClick:function(){p.setSaved(function(prev){return prev.filter(function(j){return j.id!==jam.id;});});},style:{background:'transparent',border:'none',color:'#555577',cursor:'pointer',fontSize:'12px'}},'x')
+        );}))
+      ):null
+    ):null,
+
+    React.createElement('button',{onClick:p.history.length>=2?p.goSolo:undefined,
+      style:{background:p.history.length>=2?'linear-gradient(135deg,#F59E0B,#D97706)':'transparent',color:p.history.length>=2?'#020208':'#c0c4d8',fontWeight:900,border:p.history.length>=2?'none':'2px solid #2a2a50',borderRadius:'10px',cursor:p.history.length>=2?'pointer':'default',fontFamily:'Courier New,monospace',width:'100%',padding:'15px',fontSize:'16px',marginBottom:'10px',opacity:p.history.length>=2?1:0.5}},
+      p.history.length===0?(isFr?'1. AJOUTEZ DES ACCORDS CI-DESSUS':'1. ADD CHORDS ABOVE FIRST'):p.history.length===1?(isFr?'2. ENCORE UN ACCORD':'2. ONE MORE CHORD'):(isFr?'VERROUILLER LA BOUCLE + SOLO ->':'LOCK THE LOOP + GO TO SOLO ->')
+    ),
+    React.createElement(AiChat,{lang:p.lang,currentKey:p.eKey,currentStyle:p.style,loadPat:p.loadPat,PAT:PAT,n2note:n2note,nColor:nColor,NOTES:NOTES,buildPat:buildPat})
+  );
+}
+
+function getCagedPositions(root){
+  var rf=getRF(root);
+  var colors={C:'#F59E0B',A:'#34D399',G:'#60A5FA',E:'#A78BFA',D:'#F87171'};
+  var positions=[{shape:'E',boxStart:rf-2,rootFret:rf},{shape:'D',boxStart:rf,rootFret:rf+2},{shape:'C',boxStart:rf+2,rootFret:rf+3},{shape:'A',boxStart:rf+4,rootFret:rf+5},{shape:'G',boxStart:rf+7,rootFret:rf+9}];
+  return positions.map(function(pos){var bs=((pos.boxStart%12)+12)%12;var rf2=((pos.rootFret%12)+12)%12;return {shape:pos.shape,boxStart:bs,boxEnd:bs+4,rootFret:rf2,color:colors[pos.shape]};});
+}
+function getChordCaged(chordRoot,keyRoot){
+  var positions=getCagedPositions(keyRoot);var cf=getRF(chordRoot);
+  return positions.reduce(function(b,pos){var d1=((pos.rootFret-cf+12)%12);var d2=((b.rootFret-cf+12)%12);return d1<d2?pos:b;});
+}
+function CagedNeck(p){
+  var keyRoot=p.keyRoot||'G';var activeChord=p.activeChord;var W=880;
+  var nS=6,nF=12,PL=36,PT=20,SH=44;var FW=Math.floor((W-PL)/nF);var H=PT+(nS-1)*SH+50;
+  var positions=getCagedPositions(keyRoot);var activePos=activeChord?getChordCaged(activeChord,keyRoot):null;
+  var openSemi=[4,11,7,2,9,4];var strNames=['E','A','D','G','B','e'];
+  var keyRootSemi=getRF(keyRoot);var chordRootSemi=activeChord?getRF(activeChord):keyRootSemi;
+  var els=[];var fi,si,si2,fr;
+  els.push(React.createElement('rect',{key:'bg',x:0,y:0,width:W+PL+8,height:H,fill:'#04040c',rx:10}));
+  els.push(React.createElement('rect',{key:'nut',x:PL,y:PT,width:5,height:(nS-1)*SH,fill:'#c0c4d8'}));
+  for(fi=0;fi<=nF;fi++){els.push(React.createElement('line',{key:'fl'+fi,x1:PL+fi*FW,y1:PT,x2:PL+fi*FW,y2:PT+(nS-1)*SH,stroke:fi===0?'#c0c4d8':'#1e1e3a',strokeWidth:fi===0?4:1}));}
+  for(si=0;si<nS;si++){var th=[2.5,2.0,1.5,1.1,0.8,0.6][si];els.push(React.createElement('line',{key:'sl'+si,x1:PL,y1:PT+si*SH,x2:PL+nF*FW,y2:PT+si*SH,stroke:'#2a2a55',strokeWidth:th}));els.push(React.createElement('text',{key:'sn'+si,x:PL-8,y:PT+si*SH+6,textAnchor:'end',fill:'#8888aa',fontSize:14,fontWeight:700,fontFamily:'Courier New,monospace'},strNames[si]));}
+  [3,5,7,9,12].forEach(function(df){els.push(React.createElement('circle',{key:'fm'+df,cx:PL+(df-0.5)*FW,cy:PT+(nS-1)*SH+18,r:4,fill:'#2a2a55'}));});
+  for(var fn2=1;fn2<=nF;fn2++){els.push(React.createElement('text',{key:'fn'+fn2,x:PL+(fn2-0.5)*FW,y:PT+(nS-1)*SH+42,textAnchor:'middle',fill:'#555577',fontSize:12,fontFamily:'Courier New,monospace'},String(fn2)));}
+  positions.forEach(function(pos){
+    var isActive=activePos&&pos.shape===activePos.shape;var col=pos.color;var bs=pos.boxStart,be=Math.min(pos.boxEnd,nF);
+    if(bs>=nF)return;
+    els.push(React.createElement('rect',{key:'box'+pos.shape,x:PL+bs*FW+1,y:PT,width:(be-bs)*FW-1,height:(nS-1)*SH,fill:col+(isActive?'18':'08'),stroke:col,strokeWidth:isActive?3:1,opacity:isActive?1:0.5,rx:4}));
+    els.push(React.createElement('text',{key:'bl'+pos.shape,x:PL+bs*FW+8,y:PT+22,fill:col,fontSize:isActive?22:16,fontWeight:900,fontFamily:'Courier New,monospace',opacity:isActive?1:0.6},pos.shape));
+    for(si2=0;si2<nS;si2++){for(fr=bs+1;fr<=be&&fr<=nF;fr++){var noteSemi=(openSemi[si2]+fr)%12;var isRoot=noteSemi===keyRootSemi;var isChord=noteSemi===chordRootSemi&&chordRootSemi!==keyRootSemi;if(!isRoot&&!isChord)continue;var cx2=PL+(fr-0.5)*FW;var cy2=PT+si2*SH;var dr=isActive?13:9;var dotFill=isActive?(isRoot?col:'#ffffff'):(col+'88');els.push(React.createElement('circle',{key:'dot'+si2+'f'+fr,cx:cx2,cy:cy2,r:dr,fill:dotFill,stroke:isRoot&&isActive?'#ffffff':'none',strokeWidth:2,opacity:isActive?1:0.5}));els.push(React.createElement('text',{key:'lbl'+si2+'f'+fr,x:cx2,y:cy2+5,textAnchor:'middle',fill:'#050510',fontSize:isActive?10:8,fontWeight:700,fontFamily:'Courier New,monospace'},NOTES[noteSemi]));}}
+  });
+  return React.createElement('svg',{width:'100%',viewBox:'0 0 '+(W+PL+8)+' '+H,style:{display:'block',width:'100%'}},els);
+}
+
+function ChordRefTab(p){
+  var isFr=p.lang==='fr';var allNotes=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];var quals=['maj','min','7'];
+  var selS=useState(null),sel=selS[0],setSel=selS[1];var filterS=useState('maj'),filter=filterS[0],setFilter=filterS[1];
+  return React.createElement('div',{style:{padding:'12px'}},
+    React.createElement('div',{style:{fontSize:'16px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',textAlign:'center',fontFamily:'Courier New,monospace'}},'CHORD REFERENCE'),
+    React.createElement('div',{style:{fontSize:'12px',color:'#9090c8',textAlign:'center',marginBottom:'12px'}},'Tap any chord to see full diagram'),
+    React.createElement('div',{style:{display:'flex',gap:'8px',justifyContent:'center',marginBottom:'16px'}},quals.map(function(q){var isA=filter===q;return React.createElement('button',{key:q,onClick:function(){setFilter(q);setSel(null);},style:{padding:'10px 20px',borderRadius:'10px',border:'2px solid '+(isA?'#A78BFA':'#1a1a3a'),background:isA?'rgba(167,139,250,0.2)':'rgba(255,255,255,0.04)',color:isA?'#A78BFA':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},{'maj':'Major','min':'Minor','7':'Dom 7'}[q]);})),
+    sel?React.createElement('div',{style:{background:'#07071c',borderRadius:'16px',padding:'16px',border:'2px solid '+nColor(sel,'C')+'66',marginBottom:'16px',textAlign:'center'}},React.createElement('div',{style:{fontSize:'24px',fontWeight:900,color:nColor(sel,'C'),marginBottom:'8px',fontFamily:'Courier New,monospace'}},dn(sel,p.lang,true)+(filter==='maj'?'':filter)),React.createElement('div',{style:{display:'flex',justifyContent:'center'}},React.createElement(ChordDiag,{root:sel,qual:filter,size:'lg'})),React.createElement('div',{style:{display:'flex',gap:'10px',justifyContent:'center',flexWrap:'wrap',marginTop:'12px'}},quals.map(function(q){return React.createElement('div',{key:q,style:{textAlign:'center',background:'rgba(255,255,255,0.03)',borderRadius:'10px',padding:'10px',border:'1px solid #1a1a3a'}},React.createElement('div',{style:{fontSize:'12px',fontWeight:900,color:nColor(sel,'C'),marginBottom:'4px',fontFamily:'Courier New,monospace'}},dn(sel,p.lang,true)+(q==='maj'?'':q)),React.createElement(ChordDiag,{root:sel,qual:q,size:'sm'}));})),React.createElement('button',{onClick:function(){setSel(null);},style:{marginTop:'10px',padding:'6px 16px',borderRadius:'8px',border:'1px solid #333',background:'transparent',color:'#9090c8',cursor:'pointer',fontFamily:'Courier New,monospace',fontSize:'11px'}},'close')):null,
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}},allNotes.map(function(n){var col=nColor(n,'C');var isSel=sel===n;return React.createElement('div',{key:n,onClick:function(){setSel(isSel?null:n);},style:{background:isSel?'#07071c':'rgba(255,255,255,0.03)',borderRadius:'10px',padding:'8px 4px',border:'2px solid '+(isSel?col:'#1a1a3a'),textAlign:'center',cursor:'pointer',transition:'all 0.15s'}},React.createElement('div',{style:{fontSize:'14px',fontWeight:900,color:col,marginBottom:'4px',fontFamily:'Courier New,monospace'}},dn(n,p.lang,true)+(filter==='maj'?'':filter)),React.createElement(ChordDiag,{root:n,qual:filter,size:'sm'}));})
+    )
+  );
+}
+
+function BandTab(p){
+  var isFr=p.lang==='fr';
+  var modeS=useState('setup'),bandMode=modeS[0],setBandMode=modeS[1];
+  var activeIdxS=useState(0),activeIdx=activeIdxS[0],setActiveIdx=activeIdxS[1];
+  var loopingS=useState(false),isLooping=loopingS[0],setLooping=loopingS[1];
+  var bpmS=useState(80),bpm=bpmS[0],setBpm=bpmS[1];
+  var beatS=useState(0),beat=beatS[0],setBeat=beatS[1];
+  var bpc=p.bpc||4;var loopRef=useRef(null);
+  var prog=p.confirmedProg||[];var key=p.eKey||'C';
+  var BTN={display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'12px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700,border:'none',outline:'none'};
+  var allKeys=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  var allStyles=['rock','blues','jazz','pop','country','folk','funk','latin'];
+  var dia=getDiatonic(key);
+  var keyMoodS=useState('major'),keyMood=keyMoodS[0],setKeyMood=keyMoodS[1];
+  var bandQualS=useState('maj'),bandQual=bandQualS[0],setBandQual=bandQualS[1];
+  var bandManualS=useState([]),bandManual=bandManualS[0],setBandManual=bandManualS[1];
+  var allPats=[{name:'I-IV-V',ci:[0,3,4],st:['rock','blues','country','folk','pop'],mood:'major',feel:'Classic anthem'},{name:'I-V-vi-IV',ci:[0,4,5,3],st:['pop','rock','country'],mood:'major',feel:'Happy / uplifting'},{name:'I-IV-vi-V',ci:[0,3,5,4],st:['pop','rock','soul'],mood:'major',feel:'Bittersweet'},{name:'I-vi-IV-V',ci:[0,5,3,4],st:['pop','jazz','folk','soul'],mood:'major',feel:'Nostalgic / warm'},{name:'I-V-IV',ci:[0,4,3],st:['blues','rock','country'],mood:'major',feel:'Raw / driving'},{name:'I-IV-I-V',ci:[0,3,0,4],st:['blues','folk','reggae'],mood:'major',feel:'Laid-back'},{name:'I-vi-ii-V',ci:[0,5,1,4],st:['jazz','pop','bossa'],mood:'major',feel:'Jazzy / sophisticated'},{name:'ii-V-I',ci:[1,4,0],st:['jazz','funk','latin','bossa'],mood:'major',feel:'Jazz resolution'},{name:'I-ii-IV-V',ci:[0,1,3,4],st:['funk','soul','pop'],mood:'major',feel:'Funky tension'},{name:'I-IV-ii-V',ci:[0,3,1,4],st:['funk','jazz','soul'],mood:'major',feel:'Smooth funk'},{name:'I-iii-IV-V',ci:[0,2,3,4],st:['country','folk','pop'],mood:'major',feel:'Bright / country'},{name:'vi-IV-I-V',ci:[5,3,0,4],st:['pop','rock','latin'],mood:'minor',feel:'Cinematic / emotional'},{name:'i-VII-VI-VII',ci:[5,4,3,4],st:['rock','blues','latin'],mood:'minor',feel:'Dark tension'},{name:'i-iv-VII-III',ci:[5,1,4,2],st:['jazz','latin','funk'],mood:'minor',feel:'Latin / mysterious'},{name:'i-VI-III-VII',ci:[5,3,2,4],st:['pop','rock','folk'],mood:'minor',feel:'Melancholic'},{name:'i-v-iv-i',ci:[5,4,3,5],st:['blues','folk','reggae'],mood:'minor',feel:'Heavy / soulful'},{name:'i-VII-VI-V',ci:[5,4,3,4],st:['rock','blues'],mood:'minor',feel:'Powerful / dramatic'},{name:'i-iv-v-i',ci:[5,1,4,5],st:['jazz','latin','bossa','soul'],mood:'minor',feel:'Deep groove'},{name:'i-III-VII-VI',ci:[5,2,4,3],st:['funk','soul','latin'],mood:'minor',feel:'Funky dark'},{name:'i-VI-VII-i',ci:[5,3,4,5],st:['blues','rock'],mood:'minor',feel:'Brooding loop'}];
+  var curSt=p.style||'';
+  var pats=allPats.filter(function(pt){var stOk=!curSt||pt.st.indexOf(curSt)>=0;return stOk&&pt.mood===keyMood;});
+  if(pats.length===0)pats=allPats.filter(function(pt){return pt.mood===keyMood;}).slice(0,6);
+  if(pats.length===0)pats=allPats.slice(0,6);
+  useEffect(function(){try{var stored=localStorage.getItem('lockgroove_band_saved');if(stored){var parsed=JSON.parse(stored);if(Array.isArray(parsed)&&parsed.length>0){p.setSaved(parsed);}}}catch(e){};},[]);
+  useEffect(function(){try{if(p.saved&&p.saved.length>0){localStorage.setItem('lockgroove_band_saved',JSON.stringify(p.saved));}}catch(e){};},[p.saved]);
+  useEffect(function(){
+    if(isLooping&&prog.length>0){var b=0;loopRef.current=setInterval(function(){b++;if(b>=bpc){b=0;setActiveIdx(function(i){return (i+1)%prog.length;});}setBeat(b);},60000/bpm);}
+    else{if(loopRef.current)clearInterval(loopRef.current);}
+    return function(){if(loopRef.current)clearInterval(loopRef.current);};
+  },[isLooping,bpm,bpc,prog.length]);
+
+  if(bandMode==='setup'||prog.length===0){
+    return React.createElement('div',{style:{padding:'16px',maxWidth:'920px',margin:'0 auto'}},
+      React.createElement('div',{style:{fontSize:'22px',fontWeight:900,color:'#34D399',letterSpacing:'3px',marginBottom:'24px',textAlign:'center',fontFamily:'Courier New,monospace'}},'BAND SETUP'),
+      React.createElement('div',{style:{marginBottom:'20px'}},
+        React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'KEY'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'8px',marginBottom:'12px'}},allKeys.map(function(k){var act=key===k;return React.createElement('button',{key:k,onClick:function(){p.setEKey(k);},style:Object.assign({},BTN,{padding:'18px 8px',fontSize:'17px',background:act?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(act?'#34D399':'#1a1a3a'),color:act?'#34D399':'#c0c4d8'})},k);})),
+        React.createElement('div',{style:{display:'flex',gap:'8px',alignItems:'center'}},React.createElement('span',{style:{fontSize:'13px',color:'#9090c8',fontFamily:'Courier New,monospace',fontWeight:700}},isFr?'Tonalite :':'Key mood:'),['major','minor'].map(function(m){var isA=keyMood===m;var col=m==='major'?'#F59E0B':'#A78BFA';return React.createElement('button',{key:m,onClick:function(){setKeyMood(m);},style:{padding:'8px 20px',borderRadius:'8px',border:'2px solid '+(isA?col:'#1a1a3a'),background:isA?col+'33':'rgba(255,255,255,0.04)',color:isA?col:'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer',textTransform:'uppercase'}},m);}))
+      ),
+      React.createElement('div',{style:{marginBottom:'20px'}},
+        React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'STYLE'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px'}},allStyles.map(function(st){var act=p.style===st;return React.createElement('button',{key:st,onClick:function(){p.setStyle(st);},style:Object.assign({},BTN,{padding:'16px 8px',fontSize:'13px',background:act?'rgba(167,139,250,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(act?'#A78BFA':'#1a1a3a'),color:act?'#A78BFA':'#c0c4d8',textTransform:'uppercase',letterSpacing:'1px'})},st);}))
+      ),
+      React.createElement('div',{style:{marginBottom:'20px'}},
+        React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'Choose from the most common progressions'),
+        React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'8px'}},pats.map(function(pat,pi){var chords=pat.ci.map(function(ix){return dia[ix];}).filter(Boolean);var isSel=p.loadedProg&&p.loadedProg.length===chords.length&&chords.every(function(c,ci){return p.loadedProg[ci]&&p.loadedProg[ci].root===c.root;});return React.createElement('button',{key:pi,onClick:function(){p.setLoadedProg(chords);},style:Object.assign({},BTN,{padding:'16px',justifyContent:'space-between',background:isSel?'rgba(96,165,250,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(isSel?'#60A5FA':'#1a1a3a'),color:'#e0e4f0',flexDirection:'row'})},React.createElement('div',{style:{display:'flex',flexDirection:'column',minWidth:'130px'}},React.createElement('span',{style:{fontSize:'13px',color:'#60A5FA',fontWeight:700,fontFamily:'Courier New,monospace'}},pat.name),pat.feel?React.createElement('span',{style:{fontSize:'11px',color:'#9090c8',fontStyle:'italic',marginTop:'1px'}},pat.feel):null),React.createElement('div',{style:{display:'flex',gap:'6px'}},chords.map(function(c,ci2){var col=nColor(c.root,key);return React.createElement('span',{key:ci2,style:{background:col+'22',border:'1px solid '+col+'66',borderRadius:'6px',padding:'6px 14px',fontSize:'15px',fontWeight:700,color:col}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));})));})
+        )
+      ),
+      p.loadedProg&&p.loadedProg.length>0?React.createElement('div',{style:{background:'rgba(52,211,153,0.06)',border:'2px solid rgba(52,211,153,0.3)',borderRadius:'14px',padding:'14px 16px',marginBottom:'16px'}},React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}},React.createElement('span',{style:{fontSize:'13px',fontWeight:900,color:'#34D399',fontFamily:'Courier New,monospace',letterSpacing:'2px'}},isFr?'VOTRE SELECTION':'YOUR SELECTION'),React.createElement('button',{onClick:function(){p.setLoadedProg([]);},style:{padding:'6px 14px',borderRadius:'8px',border:'1px solid #F8717144',background:'transparent',color:'#F87171',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},'CLEAR')),React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap'}},p.loadedProg.map(function(c,ci){var col=nColor(c.root,key);return React.createElement('span',{key:ci,style:{background:col+'22',border:'1px solid '+col+'66',borderRadius:'8px',padding:'10px 16px',fontSize:'16px',fontWeight:700,color:col}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));}))):null,
+      React.createElement('div',{style:{marginBottom:'20px'}},
+        React.createElement('div',{style:{fontSize:'13px',fontWeight:900,color:'#A78BFA',letterSpacing:'2px',marginBottom:'10px',fontFamily:'Courier New,monospace'}},'OR ENTER WHAT YOUR BAND TELLS YOU'),
+        React.createElement('div',{style:{display:'flex',gap:'6px',marginBottom:'10px'}},['maj','min','7'].map(function(q){var isA=bandQual===q;var qCol={'maj':'#F59E0B','min':'#A78BFA','7':'#38BDF8'}[q];var qLabel={'maj':'MAJ','min':'MIN','7':'7th'}[q];return React.createElement('button',{key:q,onClick:function(){_manQual=q;setBandQual(q);},style:{padding:isA?'10px 22px':'8px 18px',borderRadius:'10px',border:'2px solid '+(isA?qCol:qCol+'55'),background:isA?qCol+'33':'rgba(255,255,255,0.03)',color:isA?qCol:qCol+'99',fontFamily:'Courier New,monospace',fontSize:isA?'14px':'13px',fontWeight:900,cursor:'pointer',transition:'all 0.15s',boxShadow:isA?'0 0 12px '+qCol+'44':'none'}},qLabel);})),
+        React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'10px'}},dia.map(function(c,ci3){var col=nColor(c.root,key);var chord={root:c.root,quality:_manQual||'maj'};return React.createElement('button',{key:ci3,onClick:function(){setBandManual((bandManual||[]).concat([chord]));},style:Object.assign({},BTN,{padding:'16px 14px',fontSize:'15px',background:col+'1a',border:'2px solid '+col+'66',color:col})},dn(c.root,p.lang,true)+(bandQual==='maj'?'':bandQual==='min'?'m':'7'));})),
+        bandManual&&bandManual.length>0?React.createElement('div',{style:{padding:'12px',background:'rgba(167,139,250,0.06)',border:'1px solid rgba(167,139,250,0.2)',borderRadius:'10px',display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center'}},bandManual.map(function(c,ci4){var col=nColor(c.root,key);return React.createElement('span',{key:ci4,style:{background:col+'22',border:'1px solid '+col+'66',borderRadius:'6px',padding:'10px 16px',fontSize:'16px',fontWeight:700,color:col}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));}),React.createElement('button',{onClick:function(){setBandManual([]);},style:Object.assign({},BTN,{padding:'8px 14px',fontSize:'12px',background:'transparent',border:'1px solid #F8717144',color:'#F87171',marginLeft:'auto'})},'CLEAR')):null
+      ),
+      (function(){var tot=(p.loadedProg||[]).length+(bandManual||[]).length;return tot>0&&tot<3?React.createElement('div',{style:{fontSize:'13px',color:'#F59E0B',fontFamily:'Courier New,monospace',textAlign:'center',padding:'10px',marginBottom:'8px',background:'rgba(245,158,11,0.08)',borderRadius:'10px',border:'1px solid rgba(245,158,11,0.3)'}},isFr?'Ajoutez '+(3-tot)+' accord(s)!':'Add '+(3-tot)+' more chord(s) for a richer loop!'):null;})(),
+      ((p.loadedProg&&p.loadedProg.length>0)||(bandManual&&bandManual.length>0))?React.createElement('button',{onClick:function(){var merged=(p.loadedProg||[]).concat(bandManual||[]);p.setConfirmedProg(merged);p.setLoadedProg(merged);setActiveIdx(0);setBandMode('live');},style:Object.assign({},BTN,{width:'100%',padding:'26px',fontSize:'22px',letterSpacing:'3px',background:'rgba(52,211,153,0.15)',border:'3px solid #34D399',color:'#34D399',marginBottom:'20px'})},isFr?'CONFIRMER - ON JOUE !':'CONFIRM - LET\'S PLAY !'):null,
+      p.saved&&p.saved.length>0?React.createElement('div',{style:{borderTop:'1px solid #12122a',paddingTop:'16px'}},React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'SAVED'),React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'8px'}},p.saved.map(function(jam){return React.createElement('div',{key:jam.id,style:{display:'flex',alignItems:'center',gap:'10px',background:'rgba(255,255,255,0.04)',borderRadius:'12px',padding:'14px'}},React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontSize:'15px',fontWeight:700,color:'#e0e4f0',marginBottom:'6px'}},jam.name),React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},(jam.chords||[]).map(function(c,ci5){var col=nColor(c.root,jam.key||key);return React.createElement('span',{key:ci5,style:{background:col+'1a',border:'1px solid '+col+'44',borderRadius:'5px',padding:'4px 10px',fontSize:'13px',fontWeight:700,color:col}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));}))),React.createElement('button',{onClick:function(){p.setLoadedProg(jam.chords);p.setConfirmedProg(jam.chords);setActiveIdx(0);setBandMode('live');},style:Object.assign({},BTN,{padding:'16px 20px',fontSize:'15px',background:'rgba(245,158,11,0.15)',border:'2px solid rgba(245,158,11,0.5)',color:'#F59E0B'})},isFr?'charger':'LOAD'),React.createElement('button',{onClick:function(){p.setSaved(function(prev){return prev.filter(function(j){return j.id!==jam.id;});});},style:Object.assign({},BTN,{padding:'16px',fontSize:'18px',background:'transparent',border:'1px solid #333',color:'#555'})},'x'));}))
+      ):null
+    );
+  }
+
+  var beatDots=[];
+  for(var bi=0;bi<bpc;bi++){beatDots.push(React.createElement('div',{key:bi,style:{width:'16px',height:'16px',borderRadius:'50%',background:bi===beat&&isLooping?'#34D399':'#1a1a3a',border:'2px solid '+(bi===beat&&isLooping?'#34D399':'#333')}}));}
+
+  return React.createElement('div',{style:{padding:'16px',maxWidth:'920px',margin:'0 auto'}},
+    React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'20px'}},
+      React.createElement('div',{style:{fontSize:'18px',fontWeight:900,color:'#34D399',letterSpacing:'2px',fontFamily:'Courier New,monospace'}},key+' - '+(p.style||'').toUpperCase()),
+      React.createElement('div',{style:{background:'#07071c',borderRadius:'14px',padding:'18px',border:'1px solid #18183a',marginBottom:'16px'}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}},React.createElement('span',{style:{fontSize:'14px',color:'#9090c8',fontFamily:'Courier New,monospace',letterSpacing:'2px'}},'TEMPO'),React.createElement('span',{style:{fontSize:'28px',fontWeight:900,color:'#F59E0B',fontFamily:'Courier New,monospace'}},bpm+' BPM')),
+        React.createElement('input',{type:'range',min:40,max:200,value:bpm,onChange:function(e){setBpm(Number(e.target.value));},style:{width:'100%',height:'12px',accentColor:'#F59E0B',cursor:'pointer'}}),
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginTop:'6px'}},React.createElement('span',{style:{fontSize:'12px',color:'#34D399',fontFamily:'Courier New,monospace',fontWeight:700}},'SLOW'),React.createElement('span',{style:{fontSize:'11px',color:'#444466'}},'40 ... 120 ... 200'),React.createElement('span',{style:{fontSize:'12px',color:'#F87171',fontFamily:'Courier New,monospace',fontWeight:700}},'FAST'))
+      ),
+      React.createElement('button',{onClick:function(){setLooping(false);setBandMode('setup');},style:Object.assign({},BTN,{padding:'14px 20px',fontSize:'14px',background:'rgba(248,113,113,0.1)',border:'2px solid rgba(248,113,113,0.4)',color:'#F87171',letterSpacing:'1px'})},'CHANGE')
+    ),
+    React.createElement('div',{style:{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'20px'}},prog.map(function(c,ci6){var col=nColor(c.root,key);var isAct=ci6===activeIdx;return React.createElement('div',{key:ci6,onClick:function(){setActiveIdx(ci6);},style:{padding:'16px 24px',borderRadius:'12px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700,fontSize:'20px',background:isAct?col+'33':'rgba(255,255,255,0.04)',border:'2px solid '+(isAct?col:'#1a1a3a'),color:isAct?col:'#555577',transform:isAct?'scale(1.08)':'scale(1)',transition:'all 0.15s'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));})),
+    React.createElement('div',{style:{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'16px',alignItems:'flex-start',justifyContent:'center'}},prog.map(function(c,cib){var col=nColor(c.root,key);var isAct=cib===activeIdx;return React.createElement('div',{key:'cbd'+cib,onClick:function(){setActiveIdx(cib);},style:{background:'#07071c',borderRadius:'14px',padding:'14px',border:'3px solid '+(isAct?col:'#1a1a3a'),textAlign:'center',cursor:'pointer',flex:'1 1 0',minWidth:'120px',maxWidth:'200px',transition:'border-color 0.15s',boxShadow:isAct?'0 0 16px '+col+'55':'none'}},React.createElement('div',{style:{fontSize:'16px',fontWeight:900,color:col,marginBottom:'6px',fontFamily:'Courier New,monospace',letterSpacing:'2px'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality)),React.createElement(ChordDiag,{root:c.root,qual:c.quality,size:'sm'}));})),
+    React.createElement('div',{style:{display:'flex',gap:'10px',justifyContent:'center',marginBottom:'20px'}},beatDots),
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap',marginBottom:'10px',justifyContent:'center'}},
+      React.createElement('span',{style:{fontSize:'11px',fontWeight:700,color:'#c0c4d8',letterSpacing:'2px',fontFamily:'Courier New,monospace'}},'BEATS/CHORD:'),
+      [2,4,8,16].map(function(n){var isA=(p.bpc||4)===n;return React.createElement('button',{key:n,onClick:function(){p.setBpc(n);setLooping(false);setTimeout(function(){setLooping(true);},50);},style:{padding:'8px 14px',borderRadius:'8px',border:'2px solid '+(isA?'#F59E0B':'#1a1a3a'),background:isA?'rgba(245,158,11,0.2)':'rgba(255,255,255,0.04)',color:isA?'#F59E0B':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},n);})
+    ),
+    React.createElement('button',{onClick:function(){setLooping(function(v){return !v;});},style:Object.assign({},BTN,{width:'100%',padding:'26px',fontSize:'24px',letterSpacing:'3px',background:isLooping?'rgba(248,113,113,0.15)':'rgba(52,211,153,0.15)',border:'3px solid '+(isLooping?'#F87171':'#34D399'),color:isLooping?'#F87171':'#34D399'})},isLooping?'PAUSE':'PLAY'),
+    React.createElement('button',{onClick:function(){if(p.confirmedProg&&p.confirmedProg.length>0){p.setLoopChords(p.confirmedProg.slice());}p.setTab('solo');},style:Object.assign({},BTN,{width:'100%',padding:'18px',fontSize:'16px',letterSpacing:'2px',background:'rgba(167,139,250,0.12)',border:'2px solid rgba(167,139,250,0.5)',color:'#A78BFA',marginTop:'10px',marginBottom:'16px'})},isFr?'PRATIQUE SOLO':'SOLO PRACTICE'),
+    React.createElement('div',{style:{borderTop:'1px solid #12122a',paddingTop:'16px'}},
+      React.createElement('input',{type:'text',value:p.slName||'',onChange:function(e){p.setSlName(e.target.value);},placeholder:isFr?'Nom...':'Name this progression...',style:{width:'100%',boxSizing:'border-box',background:'#0a0a1e',border:'1.5px solid rgba(245,158,11,0.4)',color:'#e0e4f0',borderRadius:'10px',padding:'16px',fontFamily:'Courier New,monospace',fontSize:'15px',outline:'none',marginBottom:'10px'}}),
+      React.createElement('button',{onClick:function(){var nm=(p.slName&&p.slName.trim())?p.slName:'Prog '+(p.saved?p.saved.length+1:1);var d=new Date();p.setSaved(function(prev){return (prev||[]).concat([{id:Date.now(),name:nm,chords:prog,key:key,style:p.style,date:d.toLocaleDateString()}]);});p.setSlName('');},style:Object.assign({},BTN,{width:'100%',padding:'18px',fontSize:'15px',letterSpacing:'2px',background:'rgba(245,158,11,0.1)',border:'2px solid rgba(245,158,11,0.5)',color:'#F59E0B'})},isFr?'SAUVEGARDER':'SAVE PROGRESSION'),
+      React.createElement('button',{onClick:function(){p.setConfirmedProg([]);p.setLoadedProg([]);setBandMode('setup');setLooping(false);},style:Object.assign({},BTN,{width:'100%',padding:'16px',fontSize:'14px',letterSpacing:'2px',background:'rgba(248,113,113,0.08)',border:'2px solid rgba(248,113,113,0.4)',color:'#F87171',marginTop:'8px'})},isFr?'NOUVELLE PROGRESSION':'NEW PROGRESSION')
+    )
+  );
+}
+
+
+function NeckTab(p){
+  var isFr=p.lang==='fr';
+  var key=p.eKey||'C';
+  var chords=(p.loopChords&&p.loopChords.length>0)?p.loopChords:(p.confirmedProg&&p.confirmedProg.length>0?p.confirmedProg:(p.loadedProg&&p.loadedProg.length>0?p.loadedProg:[]));
+
+  var LN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  var keyIdx=LN.indexOf(key);
+  var CR={'C':{E:8,A:3,G:5,C:0,D:10},'C#':{E:9,A:4,G:6,C:1,D:11},'D':{E:10,A:5,G:7,C:2,D:0},'D#':{E:11,A:6,G:8,C:3,D:1},'E':{E:0,A:7,G:9,C:4,D:2},'F':{E:1,A:8,G:10,C:5,D:3},'F#':{E:2,A:9,G:11,C:6,D:4},'G':{E:3,A:10,G:0,C:7,D:5},'G#':{E:4,A:11,G:1,C:8,D:6},'A':{E:5,A:0,G:2,C:9,D:7},'A#':{E:6,A:1,G:3,C:10,D:8},'B':{E:7,A:2,G:4,C:11,D:9}};
+  var SC={E:'#F87171',A:'#34D399',G:'#60A5FA',C:'#F59E0B',D:'#C084FC'};
+  var SHAPES=['C','A','G','E','D'];
+  var SCALES_INT={pentatonic:[0,3,5,7,10],major:[0,2,4,5,7,9,11],minor:[0,2,3,5,7,8,10]};
+  var autoScale=(function(){if(!chords||!chords.length)return 'major';var m=chords.filter(function(c){return c.quality==='min';}).length;var M=chords.filter(function(c){return c.quality==='maj';}).length;return m>M?'minor':'major';})();
+  var scaleNotes=SCALES_INT[autoScale].map(function(i){return (keyIdx+i)%12;});
+
+  function suggestShapes(chords){
+    if(!chords||!chords.length)return [];
+    var result=[];var prevFret=-1;
+    chords.forEach(function(c){
+      var cr=CR[c.root]||CR['C'];
+      var best=SHAPES.reduce(function(b,s){
+        var f=cr[s];
+        if(prevFret<0)return Math.abs(f-5)<Math.abs(cr[b]-5)?s:b;
+        return Math.abs(f-prevFret)<Math.abs(cr[b]-prevFret)?s:b;
+      },SHAPES[0]);
+      prevFret=cr[best];
+      result.push(best);
+    });
+    return result;
+  }
+
+  var activeIdxS=useState(0),activeIdx=activeIdxS[0],setActiveIdx=activeIdxS[1];
+  var prevPosS=useState(-1),prevPos=prevPosS[0],setPrevPos=prevPosS[1];
+  var showAllS=useState(false),showAll=showAllS[0],setShowAll=showAllS[1];
+  var showOverlayS=useState(false),showOverlay=showOverlayS[0],setShowOverlay=showOverlayS[1];
+  var overridesS=useState({}),overrides=overridesS[0],setOverrides=overridesS[1];
+  var autoShapes=suggestShapes(chords);
+  var isCustom=Object.keys(overrides).length>0;
+
+  if(p.isLooping&&p.loopPos!==prevPos&&chords.length>0){
+    setPrevPos(p.loopPos);
+    setActiveIdx(p.loopPos%chords.length);
+  }
+
+  var curChord=chords.length>0?chords[activeIdx%chords.length]:null;
+  var nextIdx=(activeIdx+1)%chords.length;
+  var nextChord=chords.length>1?chords[nextIdx]:null;
+  var curShapeKey=overrides[activeIdx]||(autoShapes[activeIdx]||'E');
+  var nextShapeKey=overrides[nextIdx]||(autoShapes[nextIdx]||'E');
+  var curShapeFret=curChord?(CR[curChord.root]||CR['C'])[curShapeKey]:0;
+  var nextShapeFret=nextChord?(CR[nextChord.root]||CR['C'])[nextShapeKey]:0;
+
+  function getIntervalClass(noteSemi,chord){
+    if(!chord)return 'scale';
+    var root=LN.indexOf(chord.root);
+    var iv=(noteSemi-root+12)%12;
+    if(iv===0)return 'root';
+    if(iv===4||iv===3)return 'third';
+    if(iv===7)return 'fifth';
+    return 'scale';
+  }
+
+  // Get chord tones for a chord
+  function getChordTones(chord){
+    if(!chord)return [];
+    var root=LN.indexOf(chord.root);
+    var isMin=chord.quality==='min'||chord.quality==='min7';
+    return [(root+0)%12,(root+(isMin?3:4))%12,(root+7)%12];
+  }
+
+  function FullNeck(){
+    var strings=6;var frets=15;
+    var PL=44,PT=44,FW=64,SH=46;
+    var W=PL+frets*FW+16;var H=PT+(strings-1)*SH+64;
+    var strNames=['e','B','G','D','A','E'];
+    var openSemi=[4,11,7,2,9,4];
+    var curTones=getChordTones(curChord);
+    var nextTones=getChordTones(nextChord);
+    var els=[];
+
+    els.push(React.createElement('rect',{key:'bg',x:0,y:0,width:W,height:H,fill:'#080812',rx:14}));
+
+    // Shape zones
+    if(showAll){
+      SHAPES.forEach(function(sh){
+        var sf=curChord?(CR[curChord.root]||CR['C'])[sh]:0;
+        var zx=PL+sf*FW;var zw=4*FW;
+        var isActive=sh===curShapeKey;
+        els.push(React.createElement('rect',{key:'zone'+sh,x:zx+1,y:PT-12,width:zw,height:(strings-1)*SH+24,fill:SC[sh],opacity:isActive?0.12:0.04,rx:6}));
+        els.push(React.createElement('rect',{key:'zoneb'+sh,x:zx+1,y:PT-12,width:zw,height:(strings-1)*SH+24,fill:'none',stroke:SC[sh],strokeWidth:isActive?2.5:1,opacity:isActive?0.8:0.25,rx:6}));
+        els.push(React.createElement('text',{key:'znl'+sh,x:zx+zw/2,y:PT-16,textAnchor:'middle',fill:SC[sh],fontSize:isActive?13:10,fontWeight:900,fontFamily:'Courier New,monospace',opacity:isActive?1:0.4},sh));
+      });
+    } else {
+      var zx2=PL+curShapeFret*FW;var zw2=4*FW;
+      els.push(React.createElement('rect',{key:'zone',x:zx2+1,y:PT-12,width:zw2,height:(strings-1)*SH+24,fill:SC[curShapeKey],opacity:0.1,rx:6}));
+      els.push(React.createElement('rect',{key:'zoneb',x:zx2+1,y:PT-12,width:zw2,height:(strings-1)*SH+24,fill:'none',stroke:SC[curShapeKey],strokeWidth:2.5,opacity:0.7,rx:6}));
+      // Next chord zone — faint guide
+      if(showOverlay&&nextChord){
+        var nx=PL+nextShapeFret*FW;var nw=4*FW;
+        var nc=SC[nextShapeKey];
+        els.push(React.createElement('rect',{key:'nextz',x:nx+1,y:PT-12,width:nw,height:(strings-1)*SH+24,fill:nc,opacity:0.04,rx:6}));
+        els.push(React.createElement('rect',{key:'nextb',x:nx+1,y:PT-12,width:nw,height:(strings-1)*SH+24,fill:'none',stroke:nc,strokeWidth:1.5,opacity:0.3,strokeDasharray:'6 4',rx:6}));
+        els.push(React.createElement('text',{key:'nxtlbl',x:nx+nw/2,y:PT-16,textAnchor:'middle',fill:nc,fontSize:10,fontWeight:700,fontFamily:'Courier New,monospace',opacity:0.6},'NEXT: '+p.dn(nextChord.root,p.lang,true)+(nextChord.quality==='maj'?'':nextChord.quality)+' '+nextShapeKey));
+      }
+    }
+
+    // Fret lines
+    for(var f=0;f<=frets;f++){
+      els.push(React.createElement('line',{key:'fl'+f,x1:PL+f*FW,y1:PT,x2:PL+f*FW,y2:PT+(strings-1)*SH,stroke:f===0?'#9090c8':'#1e1e3a',strokeWidth:f===0?4:1}));
+    }
+    // Fret numbers
+    for(var fn=1;fn<=frets;fn++){
+      var inCur=fn>curShapeFret&&fn<=curShapeFret+4;
+      var inNxt=showOverlay&&nextChord&&fn>nextShapeFret&&fn<=nextShapeFret+4;
+      var col=inCur?SC[curShapeKey]:inNxt?SC[nextShapeKey]:'#333355';
+      els.push(React.createElement('text',{key:'fn'+fn,x:PL+(fn-0.5)*FW,y:PT+(strings-1)*SH+28,textAnchor:'middle',fill:col,fontSize:inCur||inNxt?16:12,fontWeight:inCur||inNxt?900:400,fontFamily:'Courier New,monospace'},fn));
+    }
+    // Position markers
+    [3,5,7,9,12,15].forEach(function(mf){
+      if(mf<=frets)els.push(React.createElement('circle',{key:'mk'+mf,cx:PL+(mf-0.5)*FW,cy:PT+(strings-1)*SH+50,r:5,fill:'#1a1a3a'}));
+    });
+    // Strings
+    for(var s=0;s<strings;s++){
+      var th=[0.7,0.9,1.1,1.5,1.9,2.4][s];
+      els.push(React.createElement('line',{key:'sl'+s,x1:PL,y1:PT+s*SH,x2:PL+frets*FW,y2:PT+s*SH,stroke:'#222244',strokeWidth:th}));
+      els.push(React.createElement('text',{key:'sn'+s,x:PL-12,y:PT+s*SH+5,textAnchor:'middle',fill:'#8888aa',fontSize:14,fontWeight:700,fontFamily:'Courier New,monospace'},strNames[s]));
+    }
+
+    // Notes
+    for(var ns=0;ns<strings;ns++){
+      for(var nf=1;nf<=frets;nf++){
+        var noteSemi=(openSemi[ns]+nf)%12;
+        var inScale=scaleNotes.indexOf(noteSemi)>=0;
+        if(!inScale)continue;
+        var inCurZone=nf>curShapeFret&&nf<=curShapeFret+4;
+        var inNxtZone=showOverlay&&nextChord&&nf>nextShapeFret&&nf<=nextShapeFret+4;
+        var isNextChordTone=nextTones.indexOf(noteSemi)>=0;
+        var iCur=getIntervalClass(noteSemi,curChord);
+        var iNxt=getIntervalClass(noteSemi,nextChord);
+        var cx=PL+(nf-0.5)*FW;var cy=PT+ns*SH;
+
+        if(showAll){
+          var inAnyZone=false;
+          SHAPES.forEach(function(sh){var sf2=curChord?(CR[curChord.root]||CR['C'])[sh]:0;if(nf>sf2&&nf<=sf2+4)inAnyZone=true;});
+          if(!inAnyZone)continue;
+          var nc2=iCur==='root'?'#FF4444':iCur==='third'?'#44CC44':iCur==='fifth'?'#44BBCC':'#404060';
+          var nr2=iCur==='root'?20:iCur==='third'||iCur==='fifth'?17:12;
+          var op2=iCur==='root'||iCur==='third'||iCur==='fifth'?1:0.35;
+          if(iCur==='root')els.push(React.createElement('circle',{key:'r2'+ns+nf,cx:cx,cy:cy,r:nr2+4,fill:'none',stroke:'#FF4444',strokeWidth:2,opacity:op2*0.4}));
+          els.push(React.createElement('circle',{key:'dot'+ns+nf,cx:cx,cy:cy,r:nr2,fill:nc2,opacity:op2}));
+          if(nr2>12)els.push(React.createElement('text',{key:'nt'+ns+nf,x:cx,y:cy+5,textAnchor:'middle',fill:'#fff',fontSize:12,fontWeight:900,fontFamily:'Arial,sans-serif',opacity:op2},LN[noteSemi]));
+        } else if(inCurZone){
+          // Current zone notes — full color
+          var nc3=iCur==='root'?'#FF4444':iCur==='third'?'#44CC44':iCur==='fifth'?'#44BBCC':'#404060';
+          var nr3=iCur==='root'?21:iCur==='third'||iCur==='fifth'?18:13;
+          if(iCur==='root')els.push(React.createElement('circle',{key:'rr'+ns+nf,cx:cx,cy:cy,r:nr3+4,fill:'none',stroke:'#FF4444',strokeWidth:2,opacity:0.45}));
+          els.push(React.createElement('circle',{key:'dot'+ns+nf,cx:cx,cy:cy,r:nr3,fill:nc3}));
+          els.push(React.createElement('text',{key:'nt'+ns+nf,x:cx,y:cy+5,textAnchor:'middle',fill:'#fff',fontSize:iCur==='root'?14:12,fontWeight:900,fontFamily:'Arial,sans-serif'},LN[noteSemi]));
+
+        } else if(inNxtZone&&showOverlay){
+          if(!isNextChordTone)continue;
+          var nc4=iNxt==='root'?'#FF6600':iNxt==='third'?'#AAFF00':iNxt==='fifth'?'#00DDFF':'#555';
+          var nr4=iNxt==='root'?22:18;
+          // Bright pulsing ring around next chord targets
+          els.push(React.createElement('circle',{key:'nzg'+ns+nf,cx:cx,cy:cy,r:nr4+6,fill:nc4,opacity:0.15}));
+          els.push(React.createElement('circle',{key:'nzb'+ns+nf,cx:cx,cy:cy,r:nr4+3,fill:'none',stroke:nc4,strokeWidth:2.5,opacity:0.9}));
+          els.push(React.createElement('circle',{key:'nz'+ns+nf,cx:cx,cy:cy,r:nr4,fill:nc4,opacity:0.85}));
+          els.push(React.createElement('text',{key:'nzt'+ns+nf,x:cx,y:cy+5,textAnchor:'middle',fill:'#050510',fontSize:12,fontWeight:900,fontFamily:'Arial,sans-serif'},LN[noteSemi]));
+        } else {
+          // Key root notes outside zones — very dimmed
+          if(noteSemi!==keyIdx)continue;
+          els.push(React.createElement('circle',{key:'dim'+ns+nf,cx:cx,cy:cy,r:8,fill:'#34D39933',opacity:0.3}));
+        }
+      }
+    }
+
+    // ── Compass path lines: current root → nearest next chord root ──────────
+    if(showOverlay&&nextChord&&!showAll){
+      var curRootSemi=LN.indexOf(curChord.root);
+      var nxtRootSemi=LN.indexOf(nextChord.root);
+      var curRootPts=[];var nxtRootPts=[];
+      for(var ps=0;ps<strings;ps++){
+        for(var pf=1;pf<=frets;pf++){
+          var pSemi=(openSemi[ps]+pf)%12;
+          var inCZ=pf>curShapeFret&&pf<=curShapeFret+4;
+          var inNZ=pf>nextShapeFret&&pf<=nextShapeFret+4;
+          if(pSemi===curRootSemi&&inCZ)curRootPts.push({x:PL+(pf-0.5)*FW,y:PT+ps*SH});
+          if(pSemi===nxtRootSemi&&inNZ)nxtRootPts.push({x:PL+(pf-0.5)*FW,y:PT+ps*SH});
+        }
+      }
+      // Draw path from EDGE of current root dot to EDGE of next root dot
+      curRootPts.forEach(function(cp,pi){
+        if(!nxtRootPts.length)return;
+        var nearest=nxtRootPts.reduce(function(b,np){
+          var d=Math.sqrt((np.x-cp.x)*(np.x-cp.x)+(np.y-cp.y)*(np.y-cp.y));
+          var bd=Math.sqrt((b.x-cp.x)*(b.x-cp.x)+(b.y-cp.y)*(b.y-cp.y));
+          return d<bd?np:b;
+        },nxtRootPts[0]);
+        // Long arc from current root center to next root center
+        // Small offset so line doesn't hide the note label
+        var mx2=(cp.x+nearest.x)/2;
+        var my2=(cp.y+nearest.y)/2-50;
+        els.push(React.createElement('path',{key:'path'+pi,
+          d:'M '+cp.x+' '+cp.y+' Q '+mx2+' '+my2+' '+nearest.x+' '+nearest.y,
+          fill:'none',stroke:'#ffffff',strokeWidth:3,strokeDasharray:'10 5',opacity:0.9,strokeLinecap:'round'}));
+        // Arrow head at destination
+        var aAngle=Math.atan2(nearest.y-my2,nearest.x-mx2);
+        var ax=nearest.x-16*Math.cos(aAngle);var ay=nearest.y-16*Math.sin(aAngle);
+        els.push(React.createElement('polygon',{key:'arrow'+pi,
+          points:(nearest.x)+','+(nearest.y)+' '+(ax+9*Math.sin(aAngle))+','+(ay-9*Math.cos(aAngle))+' '+(ax-9*Math.sin(aAngle))+','+(ay+9*Math.cos(aAngle)),
+          fill:'#ffffff',opacity:0.95}));
+      });
+    }
+
+    return React.createElement('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch',borderRadius:'14px'}},
+      React.createElement('svg',{width:W,height:H,style:{display:'block',minWidth:W}},els)
+    );
+  }
+
+  if(!chords.length){
+    return React.createElement('div',{style:{padding:'32px',textAlign:'center',color:'#9090c8',fontFamily:'Courier New,monospace',lineHeight:2}},
+      React.createElement('div',{style:{fontSize:'15px',fontWeight:700,color:'#F59E0B',marginBottom:'16px'}},'No progression loaded'),
+      React.createElement('div',{style:{display:'flex',gap:'10px',justifyContent:'center',flexWrap:'wrap'}},
+        React.createElement('button',{onClick:function(){p.setTab('jam');},style:{padding:'12px 24px',borderRadius:'10px',border:'2px solid #38BDF8',background:'rgba(56,189,248,0.1)',color:'#38BDF8',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},'GO TO JAM'),
+        React.createElement('button',{onClick:function(){p.setTab('band');},style:{padding:'12px 24px',borderRadius:'10px',border:'2px solid #34D399',background:'rgba(52,211,153,0.1)',color:'#34D399',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},'GO TO BAND')
+      )
+    );
+  }
+
+  return React.createElement('div',{style:{background:'#04040c',minHeight:'100vh',padding:'10px 12px',fontFamily:'Courier New,monospace'}},
+
+    // ── Header ────────────────────────────────────────────────────────────────
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap',marginBottom:'10px'}},
+      React.createElement('div',{style:{fontSize:'22px',fontWeight:900,color:'#F59E0B'}},key),
+      React.createElement('div',{style:{fontSize:'11px',color:'#60A5FA',border:'1px solid #60A5FA44',borderRadius:'6px',padding:'3px 8px',textTransform:'uppercase'}},autoScale),
+      curChord?React.createElement('div',{style:{fontSize:'16px',fontWeight:900,color:SC[curShapeKey],marginLeft:'auto'}},
+        p.dn(curChord.root,p.lang,true)+(curChord.quality==='maj'?'':curChord.quality)+' — '+curShapeKey+' shape  fr.'+curShapeFret
+      ):null,
+      isCustom?React.createElement('div',{style:{fontSize:'10px',color:'#F59E0B',border:'1px solid #F59E0B44',borderRadius:'5px',padding:'2px 7px',letterSpacing:'1px'}},'CUSTOM'):
+               React.createElement('div',{style:{fontSize:'10px',color:'#34D399',border:'1px solid #34D39944',borderRadius:'5px',padding:'2px 7px',letterSpacing:'1px'}},'AUTO')
+    ),
+
+    // ── Controls ──────────────────────────────────────────────────────────────
+    React.createElement('div',{style:{display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap',marginBottom:'8px'}},
+      React.createElement('button',{onClick:function(){p.setLooping(!p.isLooping);},style:{padding:'9px 20px',borderRadius:'9px',border:'none',background:p.isLooping?'linear-gradient(135deg,#F87171,#DC2626)':'linear-gradient(135deg,#34D399,#059669)',color:'#fff',fontWeight:900,fontSize:'13px',fontFamily:'Courier New,monospace',cursor:'pointer',letterSpacing:'2px'}},p.isLooping?'PAUSE':'PLAY'),
+      React.createElement('span',{style:{fontSize:'18px',fontWeight:900,color:'#34D399'}},p.bpm+' BPM'),
+      React.createElement('button',{onClick:function(){p.setBpm(Math.max(40,p.bpm-5));},style:{padding:'7px 14px',borderRadius:'7px',border:'1px solid #1a1a3a',background:'rgba(255,255,255,0.05)',color:'#c0c4d8',fontSize:'15px',cursor:'pointer'}},'-'),
+      React.createElement('button',{onClick:function(){p.setBpm(Math.min(200,p.bpm+5));},style:{padding:'7px 14px',borderRadius:'7px',border:'1px solid #1a1a3a',background:'rgba(255,255,255,0.05)',color:'#c0c4d8',fontSize:'15px',cursor:'pointer'}},'+'),
+      React.createElement('div',{style:{display:'flex',gap:'4px',alignItems:'center'}},
+        React.createElement('span',{style:{fontSize:'11px',color:'#9090c8'}},'BEATS:'),
+        [2,4,8,16].map(function(n){var isA=(p.bpc||4)===n;return React.createElement('button',{key:n,onClick:function(){p.setBpc(n);},style:{padding:'5px 9px',borderRadius:'6px',border:'2px solid '+(isA?'#F59E0B':'#1a1a3a'),background:isA?'rgba(245,158,11,0.2)':'transparent',color:isA?'#F59E0B':'#9090c8',fontSize:'12px',fontWeight:700,cursor:'pointer'}},n);})
+      )
+    ),
+    // View toggles
+    React.createElement('div',{style:{display:'flex',gap:'6px',marginBottom:'8px',flexWrap:'wrap'}},
+      React.createElement('button',{onClick:function(){setShowAll(function(v){return !v;});},style:{padding:'6px 12px',borderRadius:'8px',border:'2px solid '+(showAll?'#A78BFA':'#1a1a3a'),background:showAll?'rgba(167,139,250,0.2)':'transparent',color:showAll?'#A78BFA':'#9090c8',fontSize:'11px',fontWeight:700,cursor:'pointer',letterSpacing:'1px'}},showAll?'■ ONE SHAPE':'◈ SHOW ALL'),
+      React.createElement('button',{onClick:function(){setShowOverlay(function(v){return !v;});},style:{padding:'6px 12px',borderRadius:'8px',border:'2px solid '+(showOverlay?'#F59E0B':'#1a1a3a'),background:showOverlay?'rgba(245,158,11,0.15)':'transparent',color:showOverlay?'#F59E0B':'#9090c8',fontSize:'11px',fontWeight:700,cursor:'pointer',letterSpacing:'1px'}},
+        showOverlay?'■ COMPASS ON':'◎ COMPASS'),
+      showOverlay&&nextChord?React.createElement('div',{style:{fontSize:'11px',color:'#F59E0B',padding:'6px 10px',background:'rgba(245,158,11,0.08)',borderRadius:'8px',border:'1px solid rgba(245,158,11,0.3)'}},
+        '→ NEXT: '+p.dn(nextChord.root,p.lang,true)+(nextChord.quality==='maj'?'':nextChord.quality)+' ('+nextShapeKey+' fr.'+nextShapeFret+')'
+      ):null,
+      isCustom?React.createElement('button',{onClick:function(){setOverrides({});},style:{padding:'6px 12px',borderRadius:'8px',border:'1px solid #F8717144',background:'transparent',color:'#F87171',fontSize:'11px',cursor:'pointer',fontWeight:700,marginLeft:'auto'}},'↺ RESET AUTO'):null
+    ),
+
+    // ── Beat progress bar ─────────────────────────────────────────────────────
+    React.createElement('div',{style:{marginBottom:'10px',background:'#0c0c20',borderRadius:'6px',height:'6px',overflow:'hidden',border:'1px solid #1a1a3a'}},
+      React.createElement('div',{style:{height:'100%',borderRadius:'6px',background:SC[curShapeKey],
+        width:p.isLooping?((p.beat+1)/(p.bpc||4)*100)+'%':'0%',
+        willChange:'width',opacity:0.85}})
+    ),
+
+    // ── Main neck ─────────────────────────────────────────────────────────────
+    React.createElement('div',{style:{background:'#06060f',borderRadius:'14px',padding:'10px',marginBottom:'12px',border:'2px solid '+(SC[curShapeKey]+'44')}},
+      FullNeck()
+    ),
+
+    // ── Legend ────────────────────────────────────────────────────────────────
+    React.createElement('div',{style:{display:'flex',gap:'14px',flexWrap:'wrap',marginBottom:'12px',fontSize:'12px'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'5px'}},React.createElement('div',{style:{width:'14px',height:'14px',borderRadius:'50%',background:'#FF4444'}}),React.createElement('span',{style:{color:'#e0e4f0'}},'Root')),
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'5px'}},React.createElement('div',{style:{width:'14px',height:'14px',borderRadius:'50%',background:'#44CC44'}}),React.createElement('span',{style:{color:'#e0e4f0'}},'3rd')),
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'5px'}},React.createElement('div',{style:{width:'14px',height:'14px',borderRadius:'50%',background:'#44BBCC'}}),React.createElement('span',{style:{color:'#e0e4f0'}},'5th')),
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'5px'}},React.createElement('div',{style:{width:'14px',height:'14px',borderRadius:'50%',background:'#404060'}}),React.createElement('span',{style:{color:'#e0e4f0'}},'Scale')),
+      showOverlay?React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'5px'}},React.createElement('div',{style:{width:'14px',height:'14px',borderRadius:'50%',background:'#FF8844',border:'2px dashed #FF8844',opacity:0.7}}),React.createElement('span',{style:{color:'#F59E0B'}},'Next chord target')):null
+    ),
+
+    // ── Chord progression strip ────────────────────────────────────────────────
+    React.createElement('div',{style:{marginBottom:'12px'}},
+      React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',letterSpacing:'2px',marginBottom:'8px',fontWeight:700}},'PROGRESSION — TAP TO SELECT'),
+      React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap'}},
+        chords.map(function(c,ci){
+          var isAct=ci===activeIdx;
+          var isNext=ci===nextIdx&&chords.length>1;
+          var col=nColor(c.root,key);
+          var shapeForChord=overrides[ci]||(autoShapes[ci]||'E');
+          var fretForChord=(CR[c.root]||CR['C'])[shapeForChord];
+          var shapeCol=SC[shapeForChord];
+          return React.createElement('div',{key:ci,onClick:function(){setActiveIdx(ci);},
+            style:{background:isAct?col+'22':'#07071c',borderRadius:'12px',padding:'10px 12px',cursor:'pointer',textAlign:'center',minWidth:'70px',
+              border:'3px solid '+(isAct?col:isNext&&showOverlay?shapeCol+'66':'#1a1a3a'),
+              boxShadow:isAct?'0 0 16px '+col+'44':'none',transition:'none',position:'relative'}},
+            isNext&&showOverlay?React.createElement('div',{style:{position:'absolute',top:'-8px',left:'50%',transform:'translateX(-50%)',fontSize:'9px',color:shapeCol,fontWeight:900,fontFamily:'Courier New,monospace',background:'#04040c',padding:'1px 5px',borderRadius:'3px',whiteSpace:'nowrap'}},'NEXT'):null,
+            React.createElement('div',{style:{fontSize:'18px',fontWeight:900,color:col,fontFamily:'Courier New,monospace',marginBottom:'6px'}},
+              p.dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality)),
+            React.createElement('div',{style:{display:'flex',gap:'3px',justifyContent:'center',marginBottom:'4px'}},
+              SHAPES.map(function(sh){
+                var isSel=shapeForChord===sh;
+                return React.createElement('button',{key:sh,
+                  onClick:function(e){e.stopPropagation();var nOv=Object.assign({},overrides);if(sh===(autoShapes[ci]||'E')&&overrides[ci]){delete nOv[ci];}else{nOv[ci]=sh;}setOverrides(nOv);if(!p.isLooping)setActiveIdx(ci);},
+                  style:{width:'22px',height:'22px',borderRadius:'5px',border:'none',cursor:'pointer',fontFamily:'Courier New,monospace',fontSize:'10px',fontWeight:900,
+                    background:isSel?SC[sh]:'rgba(255,255,255,0.06)',color:isSel?'#050510':SC[sh]}
+                },sh);
+              })
+            ),
+            React.createElement('div',{style:{fontSize:'10px',color:shapeCol,fontFamily:'Courier New,monospace',fontWeight:700}},shapeForChord+' fr.'+fretForChord)
+          );
+        })
+      )
+    ),
+
+    // ── All positions for current chord ──────────────────────────────────────
+    curChord?React.createElement('div',{style:{background:'#07071c',borderRadius:'12px',padding:'12px',border:'1px solid #1a1a3a'}},
+      React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',letterSpacing:'2px',marginBottom:'8px',fontWeight:700}},
+        'ALL POSITIONS — '+(p.dn(curChord.root,p.lang,true)+(curChord.quality==='maj'?'':curChord.quality)).toUpperCase()),
+      React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
+        SHAPES.map(function(sh){
+          var isAct=sh===curShapeKey;
+          var fr=(CR[curChord.root]||CR['C'])[sh];
+          return React.createElement('div',{key:sh,onClick:function(){var nOv=Object.assign({},overrides);nOv[activeIdx]=sh;setOverrides(nOv);},
+            style:{flex:1,minWidth:'55px',padding:'10px 6px',borderRadius:'10px',textAlign:'center',cursor:'pointer',
+              border:'2px solid '+(isAct?SC[sh]:'#1a1a3a'),
+              background:isAct?SC[sh]+'22':'rgba(255,255,255,0.02)',
+              transition:'none',
+              boxShadow:isAct?'0 0 12px '+SC[sh]+'44':'none'}},
+            React.createElement('div',{style:{fontSize:'20px',fontWeight:900,color:SC[sh],fontFamily:'Courier New,monospace'}},sh),
+            React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginTop:'3px'}},'fr.'+fr),
+            isAct?React.createElement('div',{style:{fontSize:'9px',color:SC[sh],marginTop:'2px',letterSpacing:'1px',fontWeight:700}},'ACTIVE'):null
+          );
+        })
+      )
+    ):null,
+
+    // ── Back buttons — change chords ──────────────────────────────────────────
+    React.createElement('div',{style:{display:'flex',gap:'8px',marginTop:'16px',paddingTop:'14px',borderTop:'1px solid #1a1a3a',flexWrap:'wrap'}},
+      React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',alignSelf:'center',marginRight:'4px'}},'CHANGE CHORDS:'),
+      React.createElement('button',{onClick:function(){p.setTab('jam');},style:{padding:'8px 16px',borderRadius:'8px',border:'1.5px solid #38BDF8',background:'rgba(56,189,248,0.08)',color:'#38BDF8',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},'JAM →'),
+      React.createElement('button',{onClick:function(){p.setTab('band');},style:{padding:'8px 16px',borderRadius:'8px',border:'1.5px solid #34D399',background:'rgba(52,211,153,0.08)',color:'#34D399',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},'BAND →'),
+      React.createElement('button',{onClick:function(){p.setTab('setup');},style:{padding:'8px 16px',borderRadius:'8px',border:'1.5px solid #F59E0B',background:'rgba(245,158,11,0.08)',color:'#F59E0B',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},'PRACTICE →')
+    )
+  );
+}
+
+function LearnTab(p){
+  var isFr=p.lang==='fr';var vid1S=useState(0),activeVid1=vid1S[0],setActiveVid1=vid1S[1];
+  var sultansVids=[{yt:'_vcfLWqok9k',label:'Original lesson'},{yt:'h-Wmi4kXFDM',label:'Variation'},{yt:'X2yZhc6IENc',label:'Full breakdown'}];
+  var cagedYt='tIRX2ACOQcQ';var curYt=sultansVids[activeVid1].yt;
+  return React.createElement('div',{style:{padding:'14px',maxWidth:'640px',margin:'0 auto'}},
+    React.createElement('div',{style:{fontSize:'11px',color:'#A78BFA',letterSpacing:'3px',fontFamily:'Courier New,monospace',fontWeight:700,marginBottom:'4px'}},'PRACTICE YOUR SOLOS'),
+    React.createElement('div',{style:{fontSize:'12px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'18px'}},isFr?'Tutoriels YouTube — internet requis':'YouTube tutorials — internet required'),
+    React.createElement('div',{style:{background:'rgba(245,158,11,0.06)',border:'2px solid rgba(245,158,11,0.5)',borderRadius:'16px',overflow:'hidden',marginBottom:'20px'}},
+      React.createElement('div',{style:{padding:'16px 18px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid rgba(245,158,11,0.15)'}},React.createElement('div',{style:{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(245,158,11,0.15)',border:'2px solid #F59E0B',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},React.createElement('svg',{width:'18',height:'18',viewBox:'0 0 24 24',fill:'none',stroke:'#F59E0B',strokeWidth:'2.5',strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('polygon',{points:'5 3 19 12 5 21 5 3'}))),React.createElement('div',null,React.createElement('div',{style:{fontSize:'17px',fontWeight:900,color:'#F59E0B',fontFamily:'Courier New,monospace',marginBottom:'2px'}},'Sultans of Swing'),React.createElement('div',{style:{fontSize:'13px',color:'#c0c4d8'}},'Dire Straits'),React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginTop:'4px',fontStyle:'italic'}},'D minor pentatonic — fingerpicking'))),
+      React.createElement('div',{style:{padding:'14px 18px 18px'}},React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'12px'}},sultansVids.map(function(v,vi){var isA=vi===activeVid1;return React.createElement('button',{key:vi,onClick:function(){setActiveVid1(vi);},style:{padding:'8px 14px',borderRadius:'8px',border:'1.5px solid '+(isA?'#F59E0B':'#333'),background:isA?'rgba(245,158,11,0.2)':'rgba(255,255,255,0.04)',color:isA?'#F59E0B':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'12px',cursor:'pointer',fontWeight:isA?700:400}},v.label);})),React.createElement('div',{style:{width:'100%',height:'320px',borderRadius:'12px',overflow:'hidden',background:'#000',marginBottom:'8px'}},React.createElement('iframe',{key:curYt,src:'https://www.youtube.com/embed/'+curYt+'?rel=0',width:'100%',height:'100%',style:{display:'block',border:'none'},allow:'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',allowFullScreen:true})),React.createElement('div',{style:{fontSize:'11px',color:'#555',textAlign:'center',fontFamily:'Courier New,monospace'}},'Internet required'))
+    ),
+    React.createElement('div',{style:{background:'rgba(96,165,250,0.06)',border:'2px solid rgba(96,165,250,0.4)',borderRadius:'16px',overflow:'hidden',marginBottom:'20px'}},
+      React.createElement('div',{style:{padding:'16px 18px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid rgba(96,165,250,0.15)'}},React.createElement('div',{style:{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(96,165,250,0.15)',border:'2px solid #60A5FA',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},React.createElement('svg',{width:'18',height:'18',viewBox:'0 0 24 24',fill:'none',stroke:'#60A5FA',strokeWidth:'2.5',strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('polygon',{points:'5 3 19 12 5 21 5 3'}))),React.createElement('div',null,React.createElement('div',{style:{fontSize:'17px',fontWeight:900,color:'#60A5FA',fontFamily:'Courier New,monospace',marginBottom:'2px'}},isFr?'Le Systeme CAGED':'The CAGED System'),React.createElement('div',{style:{fontSize:'13px',color:'#c0c4d8'}},'Guitar Theory'),React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginTop:'4px',fontStyle:'italic'}},isFr?'Comprendre le manche — toutes les tonalites':'Understand the full fretboard in any key'))),
+      React.createElement('div',{style:{padding:'14px 18px 18px'}},React.createElement('div',{style:{width:'100%',height:'320px',borderRadius:'12px',overflow:'hidden',background:'#000',marginBottom:'8px'}},React.createElement('iframe',{src:'https://www.youtube.com/embed/'+cagedYt+'?rel=0',width:'100%',height:'100%',style:{display:'block',border:'none'},allow:'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',allowFullScreen:true})),React.createElement('div',{style:{fontSize:'11px',color:'#555',textAlign:'center',fontFamily:'Courier New,monospace'}},'Internet required'))
+    ),
+    React.createElement('div',{style:{background:'rgba(255,255,255,0.02)',border:'1px dashed #1a1a3a',borderRadius:'12px',padding:'16px',textAlign:'center'}},React.createElement('div',{style:{fontSize:'12px',color:'#9090c8',fontFamily:'Courier New,monospace'}},'More solos coming soon — Eagles, Pink Floyd, Led Zeppelin...'))
+  );
+}
+
+const ARTIST_CHORDS={
+  mayer:[{root:'E',quality:'min'},{root:'A',quality:'maj'},{root:'D',quality:'maj'},{root:'G',quality:'maj'}],
+  knopfler:[{root:'D',quality:'min'},{root:'C',quality:'maj'},{root:'A',quality:'min'},{root:'G',quality:'maj'}],
+  santana:[{root:'A',quality:'min'},{root:'D',quality:'min'},{root:'G',quality:'maj'},{root:'E',quality:'maj'}],
+  clapton:[{root:'E',quality:'maj'},{root:'A',quality:'maj'},{root:'B',quality:'7'},{root:'E',quality:'maj'}],
+  dire:[{root:'D',quality:'min'},{root:'A',quality:'min'},{root:'G',quality:'maj'},{root:'A',quality:'maj'}],
+  floyd:[{root:'G',quality:'maj'},{root:'D',quality:'maj'},{root:'B',quality:'min'},{root:'A',quality:'maj'}],
+  bowie:[{root:'D',quality:'maj'},{root:'E',quality:'maj'},{root:'A',quality:'maj'},{root:'G',quality:'maj'}],
+  prince:[{root:'D',quality:'min'},{root:'G',quality:'min'},{root:'A',quality:'min'},{root:'E',quality:'7'}],
+  stapleton:[{root:'G',quality:'maj'},{root:'C',quality:'maj'},{root:'D',quality:'maj'},{root:'E',quality:'min'}],
+  marley:[{root:'A',quality:'maj'},{root:'D',quality:'maj'},{root:'E',quality:'maj'},{root:'F#',quality:'min'}]
+};
+
+function Lockgroove(){
+  var G={card:{background:'#07071c',border:'1px solid #1a1a3a',borderRadius:'13px',padding:'14px',marginBottom:'10px'},lbl:{fontSize:'11px',fontWeight:700,color:'#c0c4d8',letterSpacing:'3px',marginBottom:'8px',fontFamily:'Courier New,monospace'}};
+  var langS=useState('en'),lang=langS[0],setLang=langS[1];
+  var modeS=useState(null),mode=modeS[0],setMode=modeS[1];
+  var tabS=useState('setup'),tab=tabS[0],setTab=tabS[1];
+  var keyS=useState('G'),currKey=keyS[0],setCurrKey=keyS[1];
+  var capoS=useState(0),capo=capoS[0],setCapo=capoS[1];
+  var styleS=useState('rock'),style=styleS[0],setStyle=styleS[1];
+  var artistS=useState(null),artist=artistS[0],setArtist=artistS[1];
+  var histS=useState([]),history=histS[0],setHistory=histS[1];
+  var loopChordsS=useState([]),loopChords=loopChordsS[0],setLoopChords=loopChordsS[1];
+  var loopPosS=useState(0),loopPos=loopPosS[0],setLoopPos=loopPosS[1];
+  var beatS=useState(0),beat=beatS[0],setBeat=beatS[1];
+  var bpmS=useState(90),bpm=bpmS[0],setBpm=bpmS[1];
+  var bpcS=useState(4),bpc=bpcS[0],setBpc=bpcS[1];
+  var isLoopingS=useState(false),isLooping=isLoopingS[0],setLooping=isLoopingS[1];
+  var pNoteS=useState('G'),pNote=pNoteS[0],setPNote=pNoteS[1];
+  var pQualS=useState('maj'),pQual=pQualS[0],setPQual=pQualS[1];
+  var showOutS=useState(false),showOut=showOutS[0],setShowOut=showOutS[1];
+  var suggS=useState([]),sugg=suggS[0],setSugg=suggS[1];
+  var patInfoS=useState(null),patInfo=patInfoS[0],setPatInfo=patInfoS[1];
+  var savedS=useState([]),saved=savedS[0],setSaved=savedS[1];
+  var bandSavedS=useState([]),bandSaved=bandSavedS[0],setBandSaved=bandSavedS[1];
+  var showSaved2S=useState(false),showSaved2=showSaved2S[0],setShowSaved2=showSaved2S[1];
+  var slNameS=useState(''),slName=slNameS[0],setSlName=slNameS[1];
+  var loadedProgS=useState([]),loadedProg=loadedProgS[0],setLoadedProg=loadedProgS[1];
+  var confirmedProgS=useState([]),confirmedProg=confirmedProgS[0],setConfirmedProg=confirmedProgS[1];
+  var showTunerS=useState(false),showTuner=showTunerS[0],setShowTuner=showTunerS[1];
+  var dispScaleS=useState(false),dispScale=dispScaleS[0],setDispScale=dispScaleS[1];
+  var isListenS=useState(false),isListen=isListenS[0],setIsListen=isListenS[1];
+  var detectedS=useState(null),detected=detectedS[0],setDetected=detectedS[1];
+  var streamRef=useRef(null);var animRef=useRef(null);var loopR=useRef(null);
+
+  var eKey=NOTES[(NOTES.indexOf(currKey)+capo)%12];
+
+  var bpcRef=useRef(bpc);
+  useEffect(function(){bpcRef.current=bpc;},[bpc]);
+
+  useEffect(function(){
+    if(isLooping&&loopChords.length>0){
+      var b=0;
+      // Interval fires once per beat (60000/bpm ms), counts up to bpc beats then advances chord
+      loopR.current=setInterval(function(){
+        var beatsPerChord=bpcRef.current;
+        b++;if(b>=beatsPerChord){b=0;setLoopPos(function(p){return (p+1)%loopChords.length;});}
+        setBeat(b);
+      },60000/bpm);
+    } else {if(loopR.current)clearInterval(loopR.current);}
+    return function(){if(loopR.current)clearInterval(loopR.current);};
+  },[isLooping,bpm,loopChords.length]);
+
+  function startMic(){
+    // iOS Safari: getUserMedia MUST be the first call directly in the tap handler.
+    // AudioContext must be created AFTER stream is granted, inside the .then().
+    navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(stream){
+      streamRef.current=stream;
+      var AC=window.AudioContext||window.webkitAudioContext;
+      var ctx=new AC();
+      // Resume in case browser created it in suspended state (common on iOS)
+      var doConnect=function(){
+        var src=ctx.createMediaStreamSource(stream);
+        var analyser=ctx.createAnalyser();analyser.fftSize=4096;
+        src.connect(analyser);
+        setIsListen(true);
+        var buf=new Float32Array(analyser.fftSize);
+        function detect(){
+          analyser.getFloatTimeDomainData(buf);
+          var freq=autoCorrelate(buf,ctx.sampleRate);
+          if(freq>0){var midi=12*Math.log2(freq/440)+69;var noteNum=Math.round(midi);var n=NOTES[noteNum%12];setDetected(n);setPNote(n);}
+          animRef.current=requestAnimationFrame(detect);
+        }
+        detect();
+      };
+      if(ctx.state==='suspended'){ctx.resume().then(doConnect).catch(doConnect);}
+      else{doConnect();}
+    }).catch(function(err){
+      console.warn('Mic error:',err);
+      setIsListen(false);
+      // Show a helpful message if permission denied
+      if(err.name==='NotAllowedError'||err.name==='PermissionDeniedError'){
+        setDetected(null);
+        alert('Microphone access was denied. Please allow mic access in your browser/device settings and try again.');
+      }
+    });
+  }
+  function stopMic(){
+    if(animRef.current)cancelAnimationFrame(animRef.current);
+    if(streamRef.current)streamRef.current.getTracks().forEach(function(t){t.stop();});
+    setIsListen(false);
+  }
+
+  function addChord(root,qual){
+    var num=getNum(root,eKey,qual);
+    var newChord={root:root,quality:qual,numeral:num,key:eKey,id:Date.now()};
+    var newHistory=history.concat([newChord]);
+    setHistory(newHistory);
+    setSugg(getSugg(newHistory,style));
+    setPatInfo(getPatInfo(newHistory,style));
+    setDetected(null);setIsListen(false);
+    if(streamRef.current)streamRef.current.getTracks().forEach(function(t){t.stop();});
+  }
+
+  function undoChord(){
+    var nh=history.slice(0,-1);setHistory(nh);setSugg(getSugg(nh,style));setPatInfo(getPatInfo(nh,style));
+  }
+
+  function loadJam(jam){setHistory(jam.chords||[]);if(jam.key)setCurrKey(jam.key);if(jam.style)setStyle(jam.style);setSugg(getSugg(jam.chords||[],jam.style||style));setPatInfo(getPatInfo(jam.chords||[],jam.style||style));}
+
+  function loadPat(pat){
+    var chords=buildPat(pat,eKey);
+    setLoadedProg(chords);setConfirmedProg(chords);setLoopChords(chords);setLoopPos(0);setLooping(false);setBpm(pat.bpm||90);setTab('lock');
+  }
+
+  function goSolo(prog){
+    var chords=prog||history;
+    setLoopChords(chords.slice());setConfirmedProg(chords.slice());setLoopPos(0);setLooping(false);setTab('solo');
+  }
+
+  var diatChords=getDiatonic(eKey).map(function(c){return Object.assign({},c);});
+
+  if(!mode){
+    return React.createElement('div',null,
+      React.createElement(LandingPage,{lang:lang,setLang:setLang,setMode:setMode,setTab:setTab,setSugg:function(s){setSugg(s);},style:style}),
+      showTuner?React.createElement(Tuner,{onClose:function(){setShowTuner(false);}}):null
+    );
+  }
+
+  var NAV_TABS=mode==='band'?['band','solo','ref','ai']:['setup','jam','lock','solo','band','ref','ai','learn'];
+  var NAV_LABELS={'setup':'Practice','jam':'Jam','lock':'Lock','solo':'Solo','band':'Band','ref':'Chords','ai':'AI','learn':'Learn'};
+
+  return React.createElement('div',{style:{background:'#04040c',minHeight:'100vh',fontFamily:'Courier New,monospace',color:'#e0e4f0'}},
+    React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px 0',borderBottom:'1px solid #0c0c20'}},
+      React.createElement('div',{style:{display:'flex',gap:'2px',flexWrap:'wrap'}},
+        NAV_TABS.map(function(t){var isA=tab===t;return React.createElement('button',{key:t,onClick:function(){setTab(t);},style:{padding:'10px 14px',borderRadius:'8px 8px 0 0',border:'1px solid '+(isA?'#1a1a3a':'transparent'),borderBottom:'none',background:isA?'#07071c':'transparent',color:isA?'#F59E0B':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer',letterSpacing:'1px'}},NAV_LABELS[t]||t.toUpperCase());})
+      ),
+      React.createElement('div',{style:{display:'flex',gap:'6px',alignItems:'center'}},
+        React.createElement('div',{style:{fontSize:'11px',fontWeight:700,color:'#F59E0B',background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:'6px',padding:'4px 10px',fontFamily:'Courier New,monospace'}},eKey),
+        React.createElement('button',{onClick:function(){setShowTuner(!showTuner);},style:{background:'rgba(56,189,248,0.1)',border:'1px solid rgba(56,189,248,0.3)',borderRadius:'6px',padding:'4px 8px',color:'#38BDF8',fontSize:'11px',cursor:'pointer',fontWeight:700,fontFamily:'Courier New,monospace'}},'TUNE'),
+        React.createElement('button',{onClick:function(){setMode(null);setLooping(false);},style:{background:'rgba(245,158,11,0.15)',border:'1.5px solid rgba(245,158,11,0.6)',borderRadius:'6px',padding:'4px 10px',color:'#F59E0B',fontSize:'11px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700}},'⌂ HOME')
+      )
+    ),
+    React.createElement('div',{style:{background:'#07071c',minHeight:'4px',borderBottom:'1px solid #1a1a3a'}},
+      loopChords.length>0?React.createElement('div',{style:{display:'flex',height:'4px'}},loopChords.map(function(_,i){var isA=i===loopPos;return React.createElement('div',{key:i,style:{flex:1,background:isA&&isLooping?'#34D399':'#1a1a3a',transition:'background 0.2s'}});})):null
+    ),
+    React.createElement('div',{style:{padding:'10px 14px',maxWidth:'760px',margin:'0 auto'}},
+      tab==='setup'?React.createElement(SetupTab,{lang:lang,currKey:currKey,setCurrKey:function(k){setCurrKey(k);},capo:capo,setCapo:setCapo,style:style,setStyle:setStyle,artist:artist,setArtist:setArtist,loadedProg:loadedProg,setLoadedProg:setLoadedProg,bpm:bpm,setBpm:setBpm,loadPat:loadPat,goSolo:goSolo,G:G,dn:dn}):null,
+      tab==='jam'?React.createElement(JamTab,{lang:lang,eKey:eKey,style:style,setStyle:setStyle,history:history,setHistory:setHistory,sugg:sugg,setSugg:setSugg,patInfo:patInfo,setPatInfo:setPatInfo,pNote:pNote,setPNote:setPNote,pQual:pQual,setPQual:setPQual,showOut:showOut,setShowOut:setShowOut,diatChords:diatChords,detected:detected,isListen:isListen,startMic:startMic,stopMic:stopMic,addChord:addChord,undoChord:undoChord,getSugg:getSugg,goSolo:function(){goSolo(history);},setTab:setTab,slName:slName,setSlName:setSlName,saved:saved,setSaved:setSaved,showSaved2:showSaved2,setShowSaved2:setShowSaved2,loadJam:loadJam,nColor:nColor,dn:dn,SC:{diatonic:'#34D399',borrowed:'#F59E0B',outside:'#F87171'}}):null,
+      tab==='lock'?React.createElement(LockTab,{lang:lang,eKey:eKey,style:style,loopChords:loopChords,loopPos:loopPos,bpm:bpm,setBpm:setBpm,bpc:bpc,setBpc:setBpc,isLooping:isLooping,setLooping:setLooping,setTab:setTab,nColor:nColor,dn:dn}):null,
+      tab==='solo'?React.createElement(NeckTab,{lang:lang,eKey:eKey,style:style,loopChords:loopChords,loopPos:loopPos,confirmedProg:confirmedProg,loadedProg:loadedProg,bpm:bpm,setBpm:setBpm,bpc:bpc,setBpc:setBpc,isLooping:isLooping,setLooping:setLooping,nColor:nColor,dn:dn,setTab:setTab}):null,
+      tab==='band'?React.createElement(BandTab,{lang:lang,eKey:eKey,setEKey:setCurrKey,style:style,setStyle:setStyle,loadedProg:loadedProg,setLoadedProg:setLoadedProg,confirmedProg:confirmedProg,setConfirmedProg:setConfirmedProg,bpm:bpm,setBpm:setBpm,bpc:bpc,setBpc:setBpc,saved:bandSaved,setSaved:setBandSaved,slName:slName,setSlName:setSlName,setTab:setTab,setLoopChords:setLoopChords,dn:dn}):null,
+      tab==='ref'?React.createElement(ChordRefTab,{lang:lang}):null,
+      tab==='ai'?React.createElement(AiChat,{lang:lang,currentKey:eKey,currentStyle:style}):null,
+      tab==='learn'?React.createElement(LearnTab,{lang:lang}):null
+    ),
+    showTuner?React.createElement(Tuner,{onClose:function(){setShowTuner(false);}}):null
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Lockgroove));
+}
+if(window._gcReady){ _initApp(); }
+else{ document.addEventListener('gc:ready', _initApp); }
+</script>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(function(){
+    console.log('Guitar Compass: offline ready');
+  }).catch(function(e){ console.log('SW error:', e); });
+}
+</script>
+</body>
+</html>

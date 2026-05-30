@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#04040c"/>
+  <text y="380" x="60" font-size="380" font-family="Arial">🎸</text>
+  <text y="490" x="256" text-anchor="middle" font-size="72" font-weight="900" font-family="Courier New" fill="#F59E0B" letter-spacing="4">COMPASS</text>
+</svg>

@@ -1,0 +1,19 @@
+{
+  "name": "Guitar Compass",
+  "short_name": "GuitarCompass",
+  "description": "Your guitar co-pilot — chord detection, CAGED system, jam mode, band mode",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#04040c",
+  "theme_color": "#04040c",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
