@@ -1336,28 +1336,6 @@ function NeckTab(p){
       )
     ),
 
-    // ── All positions for current chord ──────────────────────────────────────
-    curChord?React.createElement('div',{style:{background:'#07071c',borderRadius:'12px',padding:'12px',border:'1px solid #1a1a3a'}},
-      React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',letterSpacing:'2px',marginBottom:'8px',fontWeight:700}},
-        'ALL POSITIONS — '+(p.dn(curChord.root,p.lang,true)+(curChord.quality==='maj'?'':curChord.quality)).toUpperCase()),
-      React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
-        SHAPES.map(function(sh){
-          var isAct=sh===curShapeKey;
-          var fr=(CR[curChord.root]||CR['C'])[sh];
-          return React.createElement('div',{key:sh,onClick:function(){var nOv=Object.assign({},overrides);nOv[activeIdx]=sh;setOverrides(nOv);},
-            style:{flex:1,minWidth:'55px',padding:'10px 6px',borderRadius:'10px',textAlign:'center',cursor:'pointer',
-              border:'2px solid '+(isAct?SC[sh]:'#1a1a3a'),
-              background:isAct?SC[sh]+'22':'rgba(255,255,255,0.02)',
-              transition:'none',
-              boxShadow:isAct?'0 0 12px '+SC[sh]+'44':'none'}},
-            React.createElement('div',{style:{fontSize:'20px',fontWeight:900,color:SC[sh],fontFamily:'Courier New,monospace'}},sh),
-            React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginTop:'3px'}},'fr.'+fr),
-            isAct?React.createElement('div',{style:{fontSize:'9px',color:SC[sh],marginTop:'2px',letterSpacing:'1px',fontWeight:700}},'ACTIVE'):null
-          );
-        })
-      )
-    ):null,
-
     // ── Back buttons — change chords ──────────────────────────────────────────
     React.createElement('div',{style:{display:'flex',gap:'8px',marginTop:'16px',paddingTop:'14px',borderTop:'1px solid #1a1a3a',flexWrap:'wrap'}},
       React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',alignSelf:'center',marginRight:'4px'}},'CHANGE CHORDS:'),
