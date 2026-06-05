@@ -347,7 +347,7 @@ function ChordDiag(p){
   var nutH=base>1?2:5,svgW=PL+(nS-1)*SW+PL+8,svgH=PT+nF*FH+(lg?44:34);
   var els=[];
   if(base>1){els.push(React.createElement('text',{key:'fr',x:4,y:PT+FH/2+4,textAnchor:'start',fill:'#c0c4d8',fontSize:lg?11:9,fontFamily:'Courier New,monospace'},base+'fr'));}
-  els.push(React.createElement('rect',{key:'nut',x:PL,y:PT-nutH,width:(nS-1)*SW,height:nutH,fill:base>1?'#252550':'#c0c4d8'}));
+  els.push(React.createElement('rect',{key:'nut',x:PL,y:PT-nutH,width:(nS-1)*SW,height:nutH,fill:base>1?'#252550':'#c0c4d8'})); 
   for(var fi=1;fi<=nF;fi++){els.push(React.createElement('line',{key:'fh'+fi,x1:PL,y1:PT+fi*FH,x2:PL+(nS-1)*SW,y2:PT+fi*FH,stroke:'#252550',strokeWidth:1}));}
   for(var ci2=0;ci2<nS;ci2++){var thArr=(root==='F'||root==='F#'||root==='C#'||root==='G#')?[2.2,1.7,1.3,1.0,0.8,0.7]:[0.7,0.8,1.0,1.3,1.7,2.2];var th2=thArr[ci2];els.push(React.createElement('line',{key:'sv'+ci2,x1:PL+ci2*SW,y1:PT,x2:PL+ci2*SW,y2:PT+nF*FH,stroke:'#3a3a60',strokeWidth:th2}));}
   if(f1s.length>=3){var by=PT+FH/2;els.push(React.createElement('rect',{key:'bar',x:PL+minC*SW-R*0.5,y:by-R,width:(maxC-minC)*SW+R,height:R*2,rx:R,fill:'#7C3AED',opacity:0.92}));els.push(React.createElement('text',{key:'barlbl',x:PL+minC*SW+(maxC-minC)*SW/2,y:by+4,textAnchor:'middle',fill:'#ffffff',fontSize:lg?9:7,fontWeight:'bold',fontFamily:'monospace'},'1'));}
@@ -528,92 +528,189 @@ function SetupTab(p){
   var isFr=p.lang==='fr';
   var BTN={display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'12px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700,border:'none',outline:'none'};
   var allKeys=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  var dia=getDiatonic(p.currKey||'C');
+  var nColor=p.nColor||function(){return '#34D399';};
+  var dn=p.dn||function(r){return r;};
+  var key=p.currKey||'C';
+  var dia=getDiatonic(key);
   var keyMoodS=useState('major'),keyMood=keyMoodS[0],setKeyMood=keyMoodS[1];
+  var practiseBpmS=useState(90),practiseBpm=practiseBpmS[0],setPractiseBpm=practiseBpmS[1];
+  var isLoopingS=useState(false),isLooping=isLoopingS[0],setIsLooping=isLoopingS[1];
+  var practiseBpcS=useState(4),practiseBpc=practiseBpcS[0],setPractiseBpc=practiseBpcS[1];
+  var practisePosS=useState(0),practisePos=practisePosS[0],setPractisePos=practisePosS[1];
+  var saveNameModeS=useState(false),saveNameMode=saveNameModeS[0],setSaveNameMode=saveNameModeS[1];
+  var saveNameS=useState(''),saveName=saveNameS[0],setSaveName=saveNameS[1];
+  var bandQualS=useState('maj'),bandQual=bandQualS[0],setBandQual=bandQualS[1];
+  var loadedProgLen=p.loadedProg?p.loadedProg.length:0;
+  useEffect(function(){
+    if(!isLooping||loadedProgLen===0)return;
+    setPractisePos(0);
+    var beatMs=Math.round(60000/practiseBpm);
+    var bc=[0];
+    var iv=setInterval(function(){
+      bc[0]++;
+      if(bc[0]>=practiseBpc){
+        bc[0]=0;
+        setPractisePos(function(pos){
+          var n=(pos+1)%loadedProgLen;
+          if(p.setLoopPos)p.setLoopPos(n);
+          return n;
+        });
+      }
+    },beatMs);
+    return function(){clearInterval(iv);};
+  },[isLooping,practiseBpm,practiseBpc,loadedProgLen]);
   var allPats=[{name:'I-IV-V',ci:[0,3,4],st:['rock','blues','country','folk','pop'],mood:'major',feel:'Classic anthem'},{name:'I-V-vi-IV',ci:[0,4,5,3],st:['pop','rock','country'],mood:'major',feel:'Happy / uplifting'},{name:'I-IV-vi-V',ci:[0,3,5,4],st:['pop','rock','soul'],mood:'major',feel:'Bittersweet'},{name:'I-vi-IV-V',ci:[0,5,3,4],st:['pop','jazz','folk','soul'],mood:'major',feel:'Nostalgic / warm'},{name:'I-V-IV',ci:[0,4,3],st:['blues','rock','country'],mood:'major',feel:'Raw / driving'},{name:'I-IV-I-V',ci:[0,3,0,4],st:['blues','folk','reggae'],mood:'major',feel:'Laid-back'},{name:'I-vi-ii-V',ci:[0,5,1,4],st:['jazz','pop','bossa'],mood:'major',feel:'Jazzy / sophisticated'},{name:'ii-V-I',ci:[1,4,0],st:['jazz','funk','latin','bossa'],mood:'major',feel:'Jazz resolution'},{name:'vi-IV-I-V',ci:[5,3,0,4],st:['pop','rock','latin'],mood:'minor',feel:'Cinematic / emotional'},{name:'i-VII-VI-VII',ci:[5,4,3,4],st:['rock','blues','latin'],mood:'minor',feel:'Dark tension'},{name:'i-VI-III-VII',ci:[5,3,2,4],st:['pop','rock','folk'],mood:'minor',feel:'Melancholic'},{name:'i-v-iv-i',ci:[5,4,3,5],st:['blues','folk','reggae'],mood:'minor',feel:'Heavy / soulful'},{name:'i-VII-VI-V',ci:[5,4,3,4],st:['rock','blues'],mood:'minor',feel:'Powerful / dramatic'}];
   var curSt=p.style||'';
   var pats=allPats.filter(function(pt){var stOk=!curSt||pt.st.indexOf(curSt)>=0;return stOk&&pt.mood===keyMood;});
   if(pats.length===0)pats=allPats.filter(function(pt){return pt.mood===keyMood;}).slice(0,6);
 
-  return React.createElement('div',{style:{padding:'16px',maxWidth:'920px',margin:'0 auto'}},
-    React.createElement('div',{style:{fontSize:'22px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'20px',textAlign:'center',fontFamily:'Courier New,monospace'}},isFr?'PRATIQUE':'PRACTICE'),
+  return React.createElement('div',{style:{padding:p.isMobile?'8px':'12px',maxWidth:'960px',margin:'0 auto',fontSize:p.isMobile?'13px':'14px'}},
+    React.createElement('div',{style:{fontSize:'20px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'16px',textAlign:'center',fontFamily:'Courier New,monospace'}},isFr?'PRATIQUE':'PRACTICE'),
 
-    React.createElement('div',{style:{marginBottom:'20px'}},
-      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'KEY'),
-      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'8px',marginBottom:'12px'}},
-        allKeys.map(function(k){var act=p.currKey===k;return React.createElement('button',{key:k,onClick:function(){p.setCurrKey(k);},style:Object.assign({},BTN,{padding:'16px 8px',fontSize:'17px',background:act?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(act?'#34D399':'#1a1a3a'),color:act?'#34D399':'#c0c4d8'})},k);})
-      ),
-      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'8px',marginTop:'16px',fontFamily:'Courier New,monospace'}},'CAPO'),
-      React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
-        ['off',1,2,3,4,5,6,7].map(function(c){var cv=c==='off'?0:c;var isA=p.capo===cv;return React.createElement('button',{key:c,onClick:function(){p.setCapo(cv);},style:{padding:'10px 16px',borderRadius:'8px',border:'2px solid '+(isA?'#38BDF8':'#1a1a3a'),background:isA?'rgba(56,189,248,0.18)':'rgba(255,255,255,0.04)',color:isA?'#38BDF8':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},c==='off'?'off':c);})
-      )
-    ),
+    p.loadedProg&&p.loadedProg.length===0?React.createElement('div',{style:{textAlign:'center',padding:'12px',color:'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',marginBottom:'12px',background:'rgba(255,255,255,0.02)',borderRadius:'10px',border:'1px dashed #1a1a3a'}},isFr?'Selectionnez une progression pour commencer':'Select a progression to start'):null,
 
-    React.createElement('div',{style:{marginBottom:'20px'}},
-      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'STYLE'),
-      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px'}},
-        ['pop','rock','folk','funk','blues','jazz','reggae','country'].map(function(s){var act=p.style===s;return React.createElement('button',{key:s,onClick:function(){p.setStyle(s);},style:Object.assign({},BTN,{padding:'14px 8px',fontSize:'13px',background:act?'rgba(167,139,250,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(act?'#A78BFA':'#1a1a3a'),color:act?'#A78BFA':'#c0c4d8',textTransform:'uppercase',letterSpacing:'1px'})},s);})
-      )
-    ),
-
-    React.createElement('div',{style:{marginBottom:'20px'}},
-      React.createElement('div',{style:{display:'flex',gap:'8px',alignItems:'center',marginBottom:'12px'}},
-        React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',fontFamily:'Courier New,monospace'}},isFr?'PROGRESSIONS':'PROGRESSIONS'),
-        React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'8px',marginTop:'-4px'}},isFr?'Progressions les plus courantes (80%)':'Most used progressions — covers 80% of songs in this style'),
-        ['major','minor'].map(function(m){var isA=keyMood===m;var col=m==='major'?'#F59E0B':'#A78BFA';return React.createElement('button',{key:m,onClick:function(){setKeyMood(m);},style:{padding:'6px 16px',borderRadius:'8px',border:'2px solid '+(isA?col:'#1a1a3a'),background:isA?col+'33':'rgba(255,255,255,0.04)',color:isA?col:'#9090c8',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer',textTransform:'uppercase'}},m);})
-      ),
-      React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'8px'}},
+    React.createElement('div',{style:{display:'flex',flexDirection:p.isMobile||p.isTablet?'column':'row',gap:'12px',alignItems:'flex-start',marginBottom:'16px'}},
+      React.createElement('div',{style:{flex:'1',minWidth:'0'}},
+        React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:'#F59E0B',letterSpacing:'2px',marginBottom:'2px',fontFamily:'Courier New,monospace'}},'PROGRESSIONS'),
+        React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'8px'}},isFr?'Progressions les plus courantes (80%)':'Most used — covers 80% of songs in this style'),
         pats.map(function(pat,pi){
           var chords=pat.ci.map(function(ix){return dia[ix];}).filter(Boolean);
           var isSel=p.loadedProg&&p.loadedProg.length===chords.length&&chords.every(function(c,ci){return p.loadedProg[ci]&&p.loadedProg[ci].root===c.root;});
-          return React.createElement('button',{key:pi,onClick:function(){p.setLoadedProg(chords);},style:Object.assign({},BTN,{padding:'14px 16px',justifyContent:'space-between',background:isSel?'rgba(96,165,250,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(isSel?'#60A5FA':'#1a1a3a'),color:'#e0e4f0',flexDirection:'row'})},
-            React.createElement('div',{style:{display:'flex',flexDirection:'column',minWidth:'130px',textAlign:'left'}},
-              React.createElement('span',{style:{fontSize:'13px',color:'#60A5FA',fontWeight:700,fontFamily:'Courier New,monospace'}},pat.name),
-              pat.feel?React.createElement('span',{style:{fontSize:'11px',color:'#9090c8',fontStyle:'italic',marginTop:'1px'}},pat.feel):null
+          return React.createElement('div',{key:pi,onClick:function(){p.setLoadedProg(chords);},
+            style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',marginBottom:'6px',borderRadius:'10px',cursor:'pointer',border:'1.5px solid '+(isSel?'#34D399':'#1a1a3a'),background:isSel?'rgba(52,211,153,0.1)':'rgba(255,255,255,0.03)'}},
+            React.createElement('div',null,
+              React.createElement('div',{style:{fontSize:'14px',fontWeight:700,color:isSel?'#34D399':'#c0c4d8',fontFamily:'Courier New,monospace'}},pat.name),
+              pat.feel?React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontStyle:'italic'}},pat.feel):null
             ),
-            React.createElement('div',{style:{display:'flex',gap:'6px'}},
-              chords.map(function(c,ci2){var col=nColor(c.root,p.currKey||'C');return React.createElement('span',{key:ci2,style:{background:col+'22',border:'1px solid '+col+'66',borderRadius:'6px',padding:'5px 12px',fontSize:'14px',fontWeight:700,color:col}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));})
+            React.createElement('div',{style:{display:'flex',gap:'4px'}},
+              chords.map(function(c,ci){var col=nColor(c.root,key);return React.createElement('span',{key:ci,style:{fontSize:'11px',fontWeight:700,color:col,background:col+'18',border:'1px solid '+col+'44',borderRadius:'4px',padding:'2px 5px',fontFamily:'Courier New,monospace'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));})
             )
           );
-        })
+        }),
+        React.createElement('div',{style:{marginTop:'12px',paddingTop:'12px',borderTop:'1px solid #1a1a3a'}},
+          React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:'#F59E0B',letterSpacing:'2px',marginBottom:'8px',fontFamily:'Courier New,monospace'}},isFr?'OU JOUEZ COMME VOTRE ARTISTE:':'OR PLAY LIKE YOUR ARTIST:'),
+          React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
+            ARTISTS.map(function(a){var isA=p.artist&&p.artist.id===a.id;return React.createElement('button',{key:a.id,onClick:function(){p.setArtist(isA?null:a);if(!isA){var artistPats={
+  mayer:{ci:[5,3,6,4],mood:'minor'},
+  knopfler:{ci:[0,4,5,3],mood:'major'},
+  santana:{ci:[5,3,6],mood:'minor'},
+  clapton:{ci:[5,3,6,4],mood:'minor'},
+  dire:{ci:[0,3,4],mood:'major'},
+  floyd:{ci:[0,5,3,4],mood:'major'},
+  bowie:{ci:[0,3,5,4],mood:'major'},
+  prince:{ci:[5,6,3,6],mood:'minor'},
+  stapleton:{ci:[0,3,4],mood:'major'},
+  marley:{ci:[0,3,4,3],mood:'major'}
+};
+var ap=artistPats[a.id]||{ci:[0,3,4],mood:'major'};
+var ac=ap.ci.map(function(ix){return getDiatonic(p.currKey||'C')[ix];}).filter(Boolean);
+p.setLoadedProg(ac);}},style:{padding:'7px 12px',borderRadius:'8px',border:'2px solid '+(isA?a.color:a.color+'44'),background:isA?a.color+'22':'rgba(255,255,255,0.03)',color:a.color,fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},a.name);})
+          )
+        ),
+        p.artist?React.createElement('div',{style:{marginTop:'8px',background:'rgba(255,255,255,0.03)',borderRadius:'10px',padding:'10px 12px',border:'1px solid '+p.artist.color+'44'}},React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:p.artist.color,fontFamily:'Courier New,monospace',marginBottom:'2px'}},p.artist.full),React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontStyle:'italic',marginBottom:'4px'}},p.artist.feel),React.createElement('div',{style:{fontSize:'11px',color:'#c0c4d8'}},p.artist.technique)):null,
+        p.saved&&p.saved.length>0?React.createElement('div',{style:{marginTop:'12px',paddingTop:'12px',borderTop:'1px solid #1a1a3a'}},
+          React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:'#38BDF8',letterSpacing:'2px',marginBottom:'8px',fontFamily:'Courier New,monospace'}},isFr?'PROGRESSIONS SAUVEGARDEES:':'SAVED PROGRESSIONS:'),
+          React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
+            p.saved.map(function(sv,si){return React.createElement('div',{key:si,style:{display:'flex',alignItems:'center',gap:'4px'}},
+              React.createElement('button',{onClick:function(){p.setLoadedProg(sv.chords);},
+                style:{padding:'6px 10px',borderRadius:'8px 0 0 8px',border:'1px solid #38BDF8',borderRight:'none',background:'rgba(56,189,248,0.06)',color:'#38BDF8',fontFamily:'Courier New,monospace',fontSize:'12px',cursor:'pointer'}},
+                (sv.name||('Saved '+(si+1)))+' '+sv.key),
+              React.createElement('button',{onClick:function(){var ns=p.saved.filter(function(_,i){return i!==si;});p.setSaved(ns);try{localStorage.setItem('gc_saved',JSON.stringify(ns));}catch(e){}},
+                style:{padding:'6px 8px',borderRadius:'0 8px 8px 0',border:'1px solid #38BDF8',background:'rgba(239,68,68,0.1)',color:'#F87171',fontFamily:'Courier New,monospace',fontSize:'11px',cursor:'pointer',lineHeight:1}},
+                '\u00d7')
+            );})
+          )
+        ):null
+      ),
+
+      React.createElement('div',{style:{flex:p.isMobile||p.isTablet?'1 1 100%':'0 0 170px',minWidth:'0',flexShrink:0}},
+        React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:'#F59E0B',letterSpacing:'2px',marginBottom:'8px',fontFamily:'Courier New,monospace'}},'CONTROL PANEL'),
+        React.createElement('div',{style:{marginBottom:'8px'}},
+          React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'3px'}},isFr?'TONALITE:':'KEY:'),
+          React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:'2px'}},
+            allKeys.map(function(k){var act=p.currKey===k;return React.createElement('button',{key:k,onClick:function(){p.setCurrKey(k);},style:{padding:'5px 3px',fontSize:'12px',minWidth:'24px',textAlign:'center',borderRadius:'6px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700,border:'2px solid '+(act?'#34D399':'#1a1a3a'),background:act?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',color:act?'#34D399':'#c0c4d8'}},k);})
+          )
+        ),
+        React.createElement('div',{style:{marginBottom:'8px'}},
+          React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'3px'}},'MOOD:'),
+          React.createElement('div',{style:{display:'flex',gap:'3px'}},
+            ['major','minor'].map(function(m){var isA=keyMood===m;var col=m==='major'?'#F59E0B':'#A78BFA';return React.createElement('button',{key:m,onClick:function(){setKeyMood(m);},style:{flex:1,padding:'7px 4px',borderRadius:'8px',border:'2px solid '+(isA?col:'#1a1a3a'),background:isA?col+'33':'rgba(255,255,255,0.04)',color:isA?col:'#9090c8',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},m);})
+          )
+        ),
+        React.createElement('div',{style:{marginBottom:'8px'}},
+          React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'3px'}},'CAPO:'),
+          React.createElement('select',{value:p.capo||0,onChange:function(e){p.setCapo(Number(e.target.value));},style:{width:'100%',padding:'6px',borderRadius:'8px',border:'1px solid #1a1a3a',background:'#07071c',color:'#e0e4f0',fontFamily:'Courier New,monospace',fontSize:'12px',cursor:'pointer'}},
+            React.createElement('option',{value:0},isFr?'Pas de capo':'No capo'),
+            [1,2,3,4,5,6,7].map(function(n){return React.createElement('option',{key:n,value:n},'Capo '+n);})
+          )
+        ),
+        React.createElement('div',{style:{marginBottom:'8px'}},
+          React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'3px'}},'STYLE:'),
+          React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:'2px'}},
+            ['pop','rock','folk','funk','blues','jazz','reggae','country'].map(function(s){var act=p.style===s;return React.createElement('button',{key:s,onClick:function(){p.setStyle(s);},style:{padding:'5px 4px',fontSize:'11px',borderRadius:'6px',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700,background:act?'rgba(56,189,248,0.18)':'rgba(255,255,255,0.04)',border:'1.5px solid '+(act?'#38BDF8':'#1a1a3a'),color:act?'#38BDF8':'#c0c4d8'}},s);})
+          )
+        )
       )
     ),
 
-    React.createElement('div',{style:{marginBottom:'20px'}},
-      React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},isFr?'JOUER COMME UN ARTISTE':'PLAY LIKE AN ARTIST'),
-      React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'12px'}},
-        ARTISTS.map(function(a){return React.createElement('button',{key:a.id,onClick:function(){p.setArtist(p.artist&&p.artist.id===a.id?null:a);},style:{padding:'8px 14px',borderRadius:'8px',border:'2px solid '+(p.artist&&p.artist.id===a.id?a.color:a.color+'44'),background:p.artist&&p.artist.id===a.id?a.color+'22':'rgba(255,255,255,0.03)',color:a.color,fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},a.name);})
+    p.loadedProg&&p.loadedProg.length>0?React.createElement('div',{style:{marginBottom:'12px'}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}},
+        React.createElement('div',{style:{fontSize:'12px',fontWeight:700,color:'#34D399',letterSpacing:'2px',fontFamily:'Courier New,monospace'}},'YOUR SELECTION:'),
+        null
       ),
-      p.artist?React.createElement('div',{style:{background:'#07071c',border:'2px solid '+p.artist.color+'44',borderRadius:'14px',padding:'16px'}},
-        React.createElement('div',{style:{fontSize:'16px',fontWeight:700,color:p.artist.color,marginBottom:'3px',fontFamily:'Courier New,monospace'}},p.artist.full),
-        React.createElement('div',{style:{fontSize:'12px',color:'#c0c4d8',fontStyle:'italic',marginBottom:'4px'}},p.artist.feel),
-        React.createElement('div',{style:{fontSize:'12px',color:'#c0c4d8',marginBottom:'6px'}},p.artist.technique),
-        React.createElement('div',{style:{fontSize:'11px',color:p.artist.color+'aa',marginBottom:'12px'}},'Keys: '+p.artist.homeKeys.join(', ')+' | Scale: '+p.artist.scale),
-        React.createElement('div',{style:{fontSize:'13px',color:'#F59E0B',marginBottom:'10px',fontFamily:'Courier New,monospace',fontWeight:700}},isFr?'Tapez dans l\'ordre :':'Tap chords in order ->'),
-        React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap'}},
-          (ARTIST_CHORDS[p.artist.id]||[]).map(function(c,ci){var col=nColor(c.root,p.currKey||'C');return React.createElement('button',{key:ci,onClick:function(){p.setLoadedProg((p.loadedProg||[]).concat([{root:c.root,quality:c.quality}]));},style:{padding:'12px 16px',borderRadius:'10px',border:'2px solid '+col,background:col+'33',color:col,fontFamily:'Courier New,monospace',fontSize:'17px',fontWeight:900,cursor:'pointer',minWidth:'54px',textAlign:'center'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality));})
-        )
-      ):null
-    ),
+      React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:p.isMobile?'wrap':'nowrap',overflowX:p.isMobile?'visible':'auto',paddingBottom:'4px'}},
+        p.loadedProg.map(function(c,ci){var col=nColor(c.root,key);return React.createElement('div',{key:ci,
+          style:{flex:p.isMobile?'1 1 calc(50% - 8px)':'1 1 0',minWidth:'0',background:isLooping&&ci===practisePos?col+'33':col+'18',border:'3px solid '+(isLooping&&ci===practisePos?col:col+'44'),borderRadius:'12px',padding:'10px 8px',textAlign:'center',transform:isLooping&&ci===practisePos?'scale(1.06)':'scale(1)',transition:'all 0.15s',boxShadow:isLooping&&ci===practisePos?'0 0 16px '+col+'88':'none'}},
+          React.createElement('div',{style:{fontSize:'18px',fontWeight:900,color:col,fontFamily:'Courier New,monospace',marginBottom:'4px'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality)),
+          React.createElement(ChordDiag,{root:c.root,qual:c.quality,size:'sm'})
+        );})
+      )
+    ):null,
 
-    p.loadedProg&&p.loadedProg.length>0?React.createElement('div',{style:{background:'rgba(52,211,153,0.06)',border:'2px solid rgba(52,211,153,0.35)',borderRadius:'16px',padding:'16px'}},
-      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}},
-        React.createElement('span',{style:{fontSize:'13px',fontWeight:900,color:'#34D399',fontFamily:'Courier New,monospace',letterSpacing:'2px'}},isFr?'VOTRE SELECTION':'YOUR SELECTION'),
-        React.createElement('button',{onClick:function(){p.setLoadedProg([]);},style:{padding:'6px 14px',borderRadius:'8px',border:'1px solid #F8717144',background:'transparent',color:'#F87171',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},'CLEAR')
+    isLooping?React.createElement('div',{style:{background:'rgba(52,211,153,0.06)',border:'1px solid rgba(52,211,153,0.3)',borderRadius:'12px',padding:'12px 14px',marginBottom:'10px'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap',marginBottom:'8px'}},
+        React.createElement('span',{style:{fontSize:'22px',fontWeight:900,color:'#34D399',fontFamily:'Courier New,monospace'}},practiseBpm+' BPM'),
+        React.createElement('input',{type:'range',min:40,max:200,value:practiseBpm,onChange:function(e){setPractiseBpm(Number(e.target.value));},style:{flex:1,minWidth:'80px',accentColor:'#34D399'}}),
+        React.createElement('button',{onClick:function(){setPractiseBpm(Math.max(40,practiseBpm-5));},style:{padding:'6px 10px',borderRadius:'8px',border:'1px solid #1a1a3a',background:'rgba(255,255,255,0.04)',color:'#c0c4d8',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700,fontSize:'14px'}},'-5'),
+        React.createElement('button',{onClick:function(){setPractiseBpm(Math.min(200,practiseBpm+5));},style:{padding:'6px 10px',borderRadius:'8px',border:'1px solid #1a1a3a',background:'rgba(255,255,255,0.04)',color:'#c0c4d8',cursor:'pointer',fontFamily:'Courier New,monospace',fontWeight:700,fontSize:'14px'}},'+5')
       ),
-      React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'14px'}},
-        p.loadedProg.map(function(c,ci){var col=nColor(c.root,p.currKey||'C');return React.createElement('div',{key:ci,style:{background:'#04040c',borderRadius:'10px',padding:'10px',border:'2px solid '+col+'44',textAlign:'center',minWidth:'64px'}},React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:col,marginBottom:'5px',fontFamily:'Courier New,monospace'}},dn(c.root,p.lang,true)+(c.quality==='maj'?'':c.quality)),React.createElement(ChordDiag,{root:c.root,qual:c.quality,size:'sm'}),React.createElement('span',{onClick:function(){p.setLoadedProg(p.loadedProg.filter(function(_,i2){return i2!==ci;}));},style:{fontSize:'11px',color:'#555',cursor:'pointer',display:'block',marginTop:'4px'}},'x'));})
-      ),
-      React.createElement('div',{style:{marginBottom:'14px'}},
-        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:'6px'}},React.createElement('span',{style:{fontSize:'12px',color:'#34D399',fontFamily:'Courier New,monospace',fontWeight:700}},'TEMPO'),React.createElement('span',{style:{fontSize:'16px',fontWeight:900,color:'#F59E0B',fontFamily:'Courier New,monospace'}},p.bpm+' BPM')),
-        React.createElement('input',{type:'range',min:40,max:200,value:p.bpm,onChange:function(e){p.setBpm(Number(e.target.value));},style:{width:'100%',accentColor:'#34D399'}})
-      ),
-      p.loadedProg.length<3?React.createElement('div',{style:{fontSize:'12px',color:'#F59E0B',fontFamily:'Courier New,monospace',textAlign:'center',padding:'8px',marginBottom:'10px',background:'rgba(245,158,11,0.08)',borderRadius:'8px',border:'1px solid rgba(245,158,11,0.3)'}},isFr?'Ajoutez '+(3-p.loadedProg.length)+' accord(s) pour enrichir !':'Add '+(3-p.loadedProg.length)+' more chord(s) for a richer loop!'):null,
-      React.createElement('button',{onClick:function(){p.goSolo(p.loadedProg);},style:Object.assign({},BTN,{width:'100%',padding:'22px',fontSize:'20px',letterSpacing:'2px',background:'linear-gradient(135deg,#34D399,#059669)',color:'#04040c'})},isFr?'CONFIRMER - ON JOUE !':'CONFIRM - LET\'S PLAY !')
-    ):null
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}},
+        
+        React.createElement('span',{style:{fontSize:'11px',color:'#9090c8',fontFamily:'Courier New,monospace'}},'BEATS:'),
+        [2,4,8,16].map(function(b){var isA=practiseBpc===b;return React.createElement('button',{key:b,onClick:function(){setPractiseBpc(b);},style:{padding:'4px 10px',borderRadius:'6px',border:'1.5px solid '+(isA?'#34D399':'#1a1a3a'),background:isA?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',color:isA?'#34D399':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'12px',cursor:'pointer',fontWeight:isA?700:400}},b);}),
+        React.createElement('div',{style:{display:'flex',gap:'4px',marginLeft:'8px'}},
+          p.loadedProg?p.loadedProg.map(function(c,ci){var isActive=ci===practisePos;var col=nColor(c.root,key);return React.createElement('div',{key:ci,style:{width:'28px',height:'28px',borderRadius:'50%',background:isActive?col:'rgba(255,255,255,0.04)',border:'2px solid '+(isActive?col:'#1a1a3a'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:700,color:isActive?'#04040c':'#9090c8',fontFamily:'Courier New,monospace',transition:'all 0.1s'}},dn(c.root,p.lang,true));}):[null]
+        )
+      )
+    ):null,
+
+    isLooping?null:p.saved&&p.saved.length<10?React.createElement('div',{style:{display:'flex',gap:'8px',alignItems:'center',marginBottom:'8px',flexWrap:'wrap'}},
+      saveNameMode?React.createElement('input',{type:'text',value:saveName,onChange:function(e){setSaveName(e.target.value);},placeholder:isFr?'Nom de la progression...':'Name this progression...',style:{flex:1,padding:'8px 12px',borderRadius:'8px',border:'1px solid #A78BFA',background:'rgba(167,139,250,0.06)',color:'#e0e4f0',fontFamily:'Courier New,monospace',fontSize:'13px',outline:'none'}}):null,
+      saveNameMode?React.createElement('button',{onClick:function(){if(p.loadedProg&&p.loadedProg.length>0){var ns=(p.saved||[]).concat([{chords:p.loadedProg,style:p.style,key:p.currKey,name:saveName||('Prog '+(((p.saved||[]).length)+1))}]);p.setSaved(ns);try{localStorage.setItem('gc_saved',JSON.stringify(ns));}catch(e){}setSaveNameMode(false);setSaveName('');}},style:{padding:'8px 14px',borderRadius:'8px',border:'none',background:'#A78BFA',color:'#04040c',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer'}},isFr?'OK':'OK'):null,
+      saveNameMode?React.createElement('button',{onClick:function(){setSaveNameMode(false);setSaveName('');},style:{padding:'8px 14px',borderRadius:'8px',border:'1px solid #333',background:'transparent',color:'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',cursor:'pointer'}},isFr?'Annuler':'Cancel'):null
+    ):null,
+
+    React.createElement('div',{style:{display:'flex',gap:p.isMobile?'4px':'6px',flexWrap:'wrap',marginTop:'8px'}},
+      React.createElement('button',{onClick:function(){if(p.loadedProg&&p.loadedProg.length>0){setIsLooping(!isLooping);}},
+        style:{flex:1,padding:'12px 6px',borderRadius:'10px',border:'none',background:isLooping?'linear-gradient(135deg,#F87171,#DC2626)':'linear-gradient(135deg,#34D399,#059669)',color:'#04040c',fontWeight:900,fontSize:'13px',fontFamily:'Courier New,monospace',cursor:'pointer',opacity:p.loadedProg&&p.loadedProg.length>0?1:0.4}},
+        isLooping?(isFr?'STOP':'STOP'):(isFr?'PRATIQUE':'PRACTISE')),
+
+      React.createElement('button',{onClick:function(){p.setLoadedProg([]);setIsLooping(false);},
+        style:{flex:1,padding:'12px 6px',borderRadius:'10px',border:'2px solid #F87171',background:'transparent',color:'#F87171',fontWeight:700,fontSize:'13px',fontFamily:'Courier New,monospace',cursor:'pointer'}},
+        isFr?'EFFACER':'CLEAR'),
+
+      
+
+      p.loadedProg&&p.loadedProg.length>0?React.createElement('button',{onClick:function(){if(!saveNameMode){setSaveNameMode(true);}else{var ns=(p.saved||[]).concat([{chords:p.loadedProg,style:p.style,key:p.currKey,name:saveName||('Prog '+(((p.saved||[]).length)+1))}]);p.setSaved(ns);try{localStorage.setItem('gc_saved',JSON.stringify(ns));}catch(e){}p.setLoopChords(p.loadedProg.slice());p.setConfirmedProg(p.loadedProg.slice());p.setBpm(practiseBpm);setIsLooping(false);setSaveNameMode(false);setSaveName('');}},
+        style:{flex:1,padding:'12px 6px',borderRadius:'10px',border:'2px solid #38BDF8',background:'rgba(56,189,248,0.1)',color:'#38BDF8',fontWeight:700,fontSize:'13px',fontFamily:'Courier New,monospace',cursor:'pointer'}},
+        isFr?'CONFIRMER & SAUVER':'CONFIRM & SAVE'):null,
+
+      p.loadedProg&&p.loadedProg.length>0?React.createElement('button',{onClick:function(){p.setLoopChords(p.loadedProg.slice());p.setConfirmedProg(p.loadedProg.slice());p.goSolo(p.loadedProg);},
+        style:{flex:'2',padding:'12px 6px',borderRadius:'10px',border:'none',background:'linear-gradient(135deg,#A78BFA,#7C3AED)',color:'#fff',fontWeight:900,fontSize:'13px',fontFamily:'Courier New,monospace',cursor:'pointer',letterSpacing:'1px'}},
+        isFr?'GO SOLO !':'GO SOLO NOW →'):null
+    )
   );
 }
-
 function LockTab(p){
   var isFr=p.lang==='fr';var chords=p.loopChords||[];var activeIdx=chords.length>0?(p.loopPos||0)%chords.length:0;
   return React.createElement('div',{style:{padding:'12px',maxWidth:'520px',margin:'0 auto'}},
@@ -960,6 +1057,8 @@ function BandTab(p){
   var allStyles=['rock','blues','jazz','pop','country','folk','funk','latin'];
   var dia=getDiatonic(key);
   var keyMoodS=useState('major'),keyMood=keyMoodS[0],setKeyMood=keyMoodS[1];
+  var practiseBpmS=useState(90),practiseBpm=practiseBpmS[0],setPractiseBpm=practiseBpmS[1];
+  var isLoopingS=useState(false),isLooping=isLoopingS[0],setIsLooping=isLoopingS[1];
   var bandQualS=useState('maj'),bandQual=bandQualS[0],setBandQual=bandQualS[1];
   var bandManualS=useState([]),bandManual=bandManualS[0],setBandManual=bandManualS[1];
   var allPats=[{name:'I-IV-V',ci:[0,3,4],st:['rock','blues','country','folk','pop'],mood:'major',feel:'Classic anthem'},{name:'I-V-vi-IV',ci:[0,4,5,3],st:['pop','rock','country'],mood:'major',feel:'Happy / uplifting'},{name:'I-IV-vi-V',ci:[0,3,5,4],st:['pop','rock','soul'],mood:'major',feel:'Bittersweet'},{name:'I-vi-IV-V',ci:[0,5,3,4],st:['pop','jazz','folk','soul'],mood:'major',feel:'Nostalgic / warm'},{name:'I-V-IV',ci:[0,4,3],st:['blues','rock','country'],mood:'major',feel:'Raw / driving'},{name:'I-IV-I-V',ci:[0,3,0,4],st:['blues','folk','reggae'],mood:'major',feel:'Laid-back'},{name:'I-vi-ii-V',ci:[0,5,1,4],st:['jazz','pop','bossa'],mood:'major',feel:'Jazzy / sophisticated'},{name:'ii-V-I',ci:[1,4,0],st:['jazz','funk','latin','bossa'],mood:'major',feel:'Jazz resolution'},{name:'I-ii-IV-V',ci:[0,1,3,4],st:['funk','soul','pop'],mood:'major',feel:'Funky tension'},{name:'I-IV-ii-V',ci:[0,3,1,4],st:['funk','jazz','soul'],mood:'major',feel:'Smooth funk'},{name:'I-iii-IV-V',ci:[0,2,3,4],st:['country','folk','pop'],mood:'major',feel:'Bright / country'},{name:'vi-IV-I-V',ci:[5,3,0,4],st:['pop','rock','latin'],mood:'minor',feel:'Cinematic / emotional'},{name:'i-VII-VI-VII',ci:[5,4,3,4],st:['rock','blues','latin'],mood:'minor',feel:'Dark tension'},{name:'i-iv-VII-III',ci:[5,1,4,2],st:['jazz','latin','funk'],mood:'minor',feel:'Latin / mysterious'},{name:'i-VI-III-VII',ci:[5,3,2,4],st:['pop','rock','folk'],mood:'minor',feel:'Melancholic'},{name:'i-v-iv-i',ci:[5,4,3,5],st:['blues','folk','reggae'],mood:'minor',feel:'Heavy / soulful'},{name:'i-VII-VI-V',ci:[5,4,3,4],st:['rock','blues'],mood:'minor',feel:'Powerful / dramatic'},{name:'i-iv-v-i',ci:[5,1,4,5],st:['jazz','latin','bossa','soul'],mood:'minor',feel:'Deep groove'},{name:'i-III-VII-VI',ci:[5,2,4,3],st:['funk','soul','latin'],mood:'minor',feel:'Funky dark'},{name:'i-VI-VII-i',ci:[5,3,4,5],st:['blues','rock'],mood:'minor',feel:'Brooding loop'}];
@@ -980,7 +1079,7 @@ function BandTab(p){
       React.createElement('div',{style:{fontSize:'22px',fontWeight:900,color:'#34D399',letterSpacing:'3px',marginBottom:'24px',textAlign:'center',fontFamily:'Courier New,monospace'}},'BAND SETUP'),
       React.createElement('div',{style:{marginBottom:'20px'}},
         React.createElement('div',{style:{fontSize:'15px',fontWeight:900,color:'#F59E0B',letterSpacing:'3px',marginBottom:'12px',fontFamily:'Courier New,monospace'}},'KEY'),
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'8px',marginBottom:'12px'}},allKeys.map(function(k){var act=key===k;return React.createElement('button',{key:k,onClick:function(){p.setEKey(k);},style:Object.assign({},BTN,{padding:'18px 8px',fontSize:'17px',background:act?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(act?'#34D399':'#1a1a3a'),color:act?'#34D399':'#c0c4d8'})},k);})),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'8px',marginBottom:'12px'}},allKeys.map(function(k){var act=key===k;return React.createElement('button',{key:k,onClick:function(){p.setEKey(k);},style:Object.assign({},BTN,{padding:'6px 4px',fontSize:'12px',minWidth:'28px',textAlign:'center',background:act?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',border:'2px solid '+(act?'#34D399':'#1a1a3a'),color:act?'#34D399':'#c0c4d8'})},k);})),
         React.createElement('div',{style:{display:'flex',gap:'8px',alignItems:'center'}},React.createElement('span',{style:{fontSize:'13px',color:'#9090c8',fontFamily:'Courier New,monospace',fontWeight:700}},isFr?'Tonalite :':'Key mood:'),['major','minor'].map(function(m){var isA=keyMood===m;var col=m==='major'?'#F59E0B':'#A78BFA';return React.createElement('button',{key:m,onClick:function(){setKeyMood(m);},style:{padding:'8px 20px',borderRadius:'8px',border:'2px solid '+(isA?col:'#1a1a3a'),background:isA?col+'33':'rgba(255,255,255,0.04)',color:isA?col:'#9090c8',fontFamily:'Courier New,monospace',fontSize:'13px',fontWeight:700,cursor:'pointer',textTransform:'uppercase'}},m);}))
       ),
       React.createElement('div',{style:{marginBottom:'20px'}},
@@ -1040,7 +1139,8 @@ function BandTab(p){
 function NeckTab(p){
   var isFr=p.lang==='fr';
   var key=p.eKey||'C';
-  var chords=(p.loopChords&&p.loopChords.length>0)?p.loopChords:(p.confirmedProg&&p.confirmedProg.length>0?p.confirmedProg:(p.loadedProg&&p.loadedProg.length>0?p.loadedProg:[]));
+  var chords=p.loopChords&&p.loopChords.length>0?p.loopChords:p.confirmedProg&&p.confirmedProg.length>0?p.confirmedProg:p.loadedProg&&p.loadedProg.length>0?p.loadedProg:null;
+  if(!chords||chords.length===0)return React.createElement('div',{style:{padding:'20px',textAlign:'center',color:'#9090c8',fontFamily:'Courier New,monospace'}},isFr?'Selectionnez une progression dans PRATIQUE':'Select a progression in PRACTICE first');
 
   var LN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   var keyIdx=LN.indexOf(key);
@@ -1058,7 +1158,7 @@ function NeckTab(p){
       var cr=CR[c.root]||CR['C'];
       var best=SHAPES.reduce(function(b,s){
         var f=cr[s];
-        if(prevFret<0)return Math.abs(f-5)<Math.abs(cr[b]-5)?s:b;
+        if(prevFret<0)return (f<=7?f:f+10)<(cr[b]<=7?cr[b]:cr[b]+10)?s:b;
         return Math.abs(f-prevFret)<Math.abs(cr[b]-prevFret)?s:b;
       },SHAPES[0]);
       prevFret=cr[best];
@@ -1362,13 +1462,19 @@ function NeckTab(p){
       React.createElement('button',{onClick:function(){p.setTab('band');},style:{padding:'8px 16px',borderRadius:'8px',border:'1.5px solid #34D399',background:'rgba(52,211,153,0.08)',color:'#34D399',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},'BAND →'),
       React.createElement('button',{onClick:function(){p.setTab('setup');},style:{padding:'8px 16px',borderRadius:'8px',border:'1.5px solid #F59E0B',background:'rgba(245,158,11,0.08)',color:'#F59E0B',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},'PRACTICE →'),
     React.createElement('div',{style:{marginTop:'16px',padding:'14px',background:'rgba(255,255,255,0.03)',border:'1px solid #1a1a3a',borderRadius:'12px'}},React.createElement('div',{style:{fontSize:'12px',color:'#9090c8',fontFamily:'Courier New,monospace',fontWeight:700,letterSpacing:'2px',marginBottom:'10px'}},isFr?'CHANGER DE TONALITE :':'CHANGE KEY:'),React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].map(function(k){var isA=key===k;return React.createElement('button',{key:k,onClick:function(){p.setEKey(k);},style:{padding:'8px 10px',borderRadius:'8px',border:'2px solid '+(isA?'#34D399':'#1a1a3a'),background:isA?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',color:isA?'#34D399':'#c0c4d8',fontFamily:'Courier New,monospace',fontSize:'12px',fontWeight:700,cursor:'pointer'}},k);}))),
-    React.createElement('div',{style:{marginTop:'16px',background:'rgba(96,165,250,0.06)',border:'2px solid rgba(96,165,250,0.3)',borderRadius:'16px',padding:'20px',textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center'}},React.createElement('div',{style:{fontSize:'12px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'6px'}},isFr?'Le meilleur outil pour les gammes :':'Best app to learn scales on the fretboard:'),React.createElement('div',{style:{fontSize:'18px',fontWeight:900,color:'#60A5FA',fontFamily:'Courier New,monospace',letterSpacing:'2px',marginBottom:'6px'}},'fr3t.app'),React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginBottom:'12px'}},'Scales · Chords · CAGED · Audio'),React.createElement('button',{onClick:function(){p.setTab('learn');},style:{padding:'10px 24px',borderRadius:'10px',border:'none',background:'linear-gradient(135deg,#60A5FA,#3B82F6)',color:'#fff',fontWeight:900,fontSize:'13px',fontFamily:'Courier New,monospace',cursor:'pointer'}},'GO TO LEARN →'))
+    React.createElement('div',{style:{marginTop:'16px',background:'rgba(245,158,11,0.06)',border:'2px solid rgba(245,158,11,0.3)',borderRadius:'16px',padding:'16px',textAlign:'center'}},
+    React.createElement('div',{style:{fontSize:'13px',color:'#9090c8',fontFamily:'Courier New,monospace',marginBottom:'6px'}},isFr?'Vous voulez apprendre les formes CAGED ?':'Want to learn the CAGED shapes?'),
+    React.createElement('div',{style:{fontSize:'16px',fontWeight:900,color:'#F59E0B',fontFamily:'Courier New,monospace',letterSpacing:'2px',marginBottom:'4px'}},'LEARN CAGED'),
+    React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginBottom:'12px'}},isFr?'Videos, techniques et exercices':'Videos, techniques and exercises'),
+    React.createElement('button',{onClick:function(){p.setTab('learn');},style:{padding:'10px 28px',borderRadius:'10px',border:'none',background:'linear-gradient(135deg,#F59E0B,#D97706)',color:'#04040c',fontWeight:900,fontSize:'13px',fontFamily:'Courier New,monospace',cursor:'pointer',letterSpacing:'2px'}},isFr?'VOIR LEARN →':'GO TO LEARN →')
+  )
     )
   );
 }
 
 function LearnTab(p){
   var isFr=p.lang==='fr';var vid1S=useState(0),activeVid1=vid1S[0],setActiveVid1=vid1S[1];
+  var vid2S=useState(0),activeVid2=vid2S[0],setActiveVid2=vid2S[1];
   var sultansVids=[{yt:'_vcfLWqok9k',label:'Original lesson'},{yt:'h-Wmi4kXFDM',label:'Variation'},{yt:'X2yZhc6IENc',label:'Full breakdown'}];
   var cagedYt='tIRX2ACOQcQ';var curYt=sultansVids[activeVid1].yt;
   return React.createElement('div',{style:{padding:'14px',maxWidth:'640px',margin:'0 auto'}},
@@ -1378,6 +1484,31 @@ function LearnTab(p){
     React.createElement('div',{style:{background:'rgba(245,158,11,0.06)',border:'2px solid rgba(245,158,11,0.5)',borderRadius:'16px',overflow:'hidden',marginBottom:'20px'}},
       React.createElement('div',{style:{padding:'16px 18px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid rgba(245,158,11,0.15)'}},React.createElement('div',{style:{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(245,158,11,0.15)',border:'2px solid #F59E0B',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},React.createElement('svg',{width:'18',height:'18',viewBox:'0 0 24 24',fill:'none',stroke:'#F59E0B',strokeWidth:'2.5',strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('polygon',{points:'5 3 19 12 5 21 5 3'}))),React.createElement('div',null,React.createElement('div',{style:{fontSize:'17px',fontWeight:900,color:'#F59E0B',fontFamily:'Courier New,monospace',marginBottom:'2px'}},'Sultans of Swing'),React.createElement('div',{style:{fontSize:'13px',color:'#c0c4d8'}},'Dire Straits'),React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginTop:'4px',fontStyle:'italic'}},'D minor pentatonic — fingerpicking'))),
       React.createElement('div',{style:{padding:'14px 18px 18px'}},React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'12px'}},sultansVids.map(function(v,vi){var isA=vi===activeVid1;return React.createElement('button',{key:vi,onClick:function(){setActiveVid1(vi);},style:{padding:'8px 14px',borderRadius:'8px',border:'1.5px solid '+(isA?'#F59E0B':'#333'),background:isA?'rgba(245,158,11,0.2)':'rgba(255,255,255,0.04)',color:isA?'#F59E0B':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'12px',cursor:'pointer',fontWeight:isA?700:400}},v.label);})),React.createElement('div',{style:{width:'100%',height:'320px',borderRadius:'12px',overflow:'hidden',background:'#000',marginBottom:'8px'}},React.createElement('iframe',{key:curYt,src:'https://www.youtube.com/embed/'+curYt+'?rel=0',width:'100%',height:'100%',style:{display:'block',border:'none'},allow:'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',allowFullScreen:true})),React.createElement('div',{style:{fontSize:'11px',color:'#555',textAlign:'center',fontFamily:'Courier New,monospace'}},'Internet required'))
+    ),React.createElement('div',{style:{background:'rgba(52,211,153,0.06)',border:'2px solid rgba(52,211,153,0.5)',borderRadius:'16px',overflow:'hidden',marginBottom:'20px'}},
+      React.createElement('div',{style:{padding:'16px 18px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid rgba(52,211,153,0.15)'}},
+        React.createElement('div',{style:{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(52,211,153,0.15)',border:'2px solid #34D399',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+          React.createElement('svg',{width:'18',height:'18',viewBox:'0 0 24 24',fill:'none',stroke:'#34D399',strokeWidth:'2.5',strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('polygon',{points:'5 3 19 12 5 21 5 3'}))
+        ),
+        React.createElement('div',null,
+          React.createElement('div',{style:{fontSize:'17px',fontWeight:900,color:'#34D399',fontFamily:'Courier New,monospace',marginBottom:'2px'}},'Sultans of Swing — Solo Alchemy Live'),
+          React.createElement('div',{style:{fontSize:'13px',color:'#c0c4d8'}},'Dire Straits'),
+          React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginTop:'4px',fontStyle:'italic'}},'D minor pentatonic — backing track + full solo')
+        )
+      ),
+      React.createElement('div',{style:{padding:'14px 18px 18px'}},
+        React.createElement('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'12px'}},
+          [{yt:'S6sD1RoheEQ',label:'Backing Track'},{yt:'SwYixTq52qg',label:'Actual Solo'}].map(function(v,vi){
+            var isA=vi===activeVid2;
+            return React.createElement('button',{key:vi,onClick:function(){setActiveVid2(vi);},
+              style:{padding:'8px 14px',borderRadius:'8px',border:'1.5px solid '+(isA?'#34D399':'#333'),background:isA?'rgba(52,211,153,0.2)':'rgba(255,255,255,0.04)',color:isA?'#34D399':'#9090c8',fontFamily:'Courier New,monospace',fontSize:'12px',cursor:'pointer',fontWeight:isA?700:400}},
+            v.label);
+          })
+        ),
+        React.createElement('div',{style:{width:'100%',height:'320px',borderRadius:'12px',overflow:'hidden',background:'#000',marginBottom:'8px'}},
+          React.createElement('iframe',{key:activeVid2,src:'https://www.youtube.com/embed/'+[{yt:'S6sD1RoheEQ'},{yt:'SwYixTq52qg'}][activeVid2].yt+'?rel=0',width:'100%',height:'100%',style:{display:'block',border:'none'},allow:'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',allowFullScreen:true})
+        ),
+        React.createElement('div',{style:{fontSize:'11px',color:'#555',textAlign:'center',fontFamily:'Courier New,monospace'}},'Internet required')
+      )
     ),
     React.createElement('div',{style:{background:'rgba(96,165,250,0.06)',border:'2px solid rgba(96,165,250,0.4)',borderRadius:'16px',overflow:'hidden',marginBottom:'20px'}},
       React.createElement('div',{style:{padding:'16px 18px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid rgba(96,165,250,0.15)'}},React.createElement('div',{style:{width:'44px',height:'44px',borderRadius:'10px',background:'rgba(96,165,250,0.15)',border:'2px solid #60A5FA',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},React.createElement('svg',{width:'18',height:'18',viewBox:'0 0 24 24',fill:'none',stroke:'#60A5FA',strokeWidth:'2.5',strokeLinecap:'round',strokeLinejoin:'round'},React.createElement('polygon',{points:'5 3 19 12 5 21 5 3'}))),React.createElement('div',null,React.createElement('div',{style:{fontSize:'17px',fontWeight:900,color:'#60A5FA',fontFamily:'Courier New,monospace',marginBottom:'2px'}},isFr?'Le Systeme CAGED':'The CAGED System'),React.createElement('div',{style:{fontSize:'13px',color:'#c0c4d8'}},'Guitar Theory'),React.createElement('div',{style:{fontSize:'11px',color:'#9090c8',marginTop:'4px',fontStyle:'italic'}},isFr?'Comprendre le manche — toutes les tonalites':'Understand the full fretboard in any key'))),
@@ -1407,7 +1538,6 @@ function Lockgroove(){
   var modeS=useState(null),mode=modeS[0],setMode=modeS[1];
   var tabS=useState('setup'),tab=tabS[0],setTab=tabS[1];
   var keyS=useState('G'),currKey=keyS[0],setCurrKey=keyS[1];
-  var capoS=useState(0),capo=capoS[0],setCapo=capoS[1];
   var styleS=useState('rock'),style=styleS[0],setStyle=styleS[1];
   var artistS=useState(null),artist=artistS[0],setArtist=artistS[1];
   var histS=useState([]),history=histS[0],setHistory=histS[1];
@@ -1422,7 +1552,7 @@ function Lockgroove(){
   var showOutS=useState(false),showOut=showOutS[0],setShowOut=showOutS[1];
   var suggS=useState([]),sugg=suggS[0],setSugg=suggS[1];
   var patInfoS=useState(null),patInfo=patInfoS[0],setPatInfo=patInfoS[1];
-  var savedS=useState([]),saved=savedS[0],setSaved=savedS[1];
+  var savedS=useState(function(){try{var s=localStorage.getItem('gc_saved');return s?JSON.parse(s):[];}catch(e){return [];}}),saved=savedS[0],setSaved=savedS[1];
   var bandSavedS=useState([]),bandSaved=bandSavedS[0],setBandSaved=bandSavedS[1];
   var showSaved2S=useState(false),showSaved2=showSaved2S[0],setShowSaved2=showSaved2S[1];
   var slNameS=useState(''),slName=slNameS[0],setSlName=slNameS[1];
@@ -1434,7 +1564,7 @@ function Lockgroove(){
   var detectedS=useState(null),detected=detectedS[0],setDetected=detectedS[1];
   var streamRef=useRef(null);var animRef=useRef(null);var loopR=useRef(null);
 
-  var eKey=NOTES[(NOTES.indexOf(currKey)+capo)%12];
+  var eKey=currKey;
 
   var bpcRef=useRef(bpc);
   useEffect(function(){bpcRef.current=bpc;},[bpc]);
@@ -1511,12 +1641,13 @@ function Lockgroove(){
 
   function loadPat(pat){
     var chords=buildPat(pat,eKey);
-    setLoadedProg(chords);setConfirmedProg(chords);setLoopChords(chords);setLoopPos(0);setLooping(false);setBpm(pat.bpm||90);setTab('lock');
+    setLoadedProg(chords);setConfirmedProg(chords);setLoopChords(chords);setLoopPos(0);setLooping(false);setBpm(pat.bpm||90);
   }
 
   function goSolo(prog){
-    var chords=prog||history;
-    setLoopChords(chords.slice());setConfirmedProg(chords.slice());setLoopPos(0);setLooping(false);setTab('lock');
+    var chords=prog&&prog.length>0?prog:[];
+    if(chords.length===0)return;
+    setLoopChords(chords.slice());setConfirmedProg(chords.slice());setLoopPos(0);setLooping(false);setTab('solo');
   }
 
   var diatChords=getDiatonic(eKey).map(function(c){return Object.assign({},c);});
@@ -1528,8 +1659,8 @@ function Lockgroove(){
     );
   }
 
-  var NAV_TABS=mode==='band'?['band','solo','ref','ai']:['setup','jam','lock','solo','band','ref','ai','learn'];
-  var NAV_LABELS={'setup':'Practice','jam':'Jam','lock':'Lock','solo':'Solo','band':'Band','ref':'Chords','ai':'AI','learn':'Learn'};
+  var NAV_TABS=mode==='band'?['band','solo','ref','ai']:['setup','jam','solo','band','ref','ai','learn'];
+  var NAV_LABELS={'setup':'Practice','jam':'Freestyle','solo':'Solo','band':'Band','ref':'Chords','ai':'AI','learn':'Learn'};
 
   return React.createElement('div',{style:{background:'#04040c',minHeight:'100vh',fontFamily:'Courier New,monospace',color:'#e0e4f0'}},
     showWelcome?React.createElement(WelcomeModal,{lang:lang,onDismiss:function(){try{localStorage.setItem('gc_welcomed','1');}catch(e){}setShowWelcome(false);}}):null,
@@ -1547,10 +1678,10 @@ function Lockgroove(){
       loopChords.length>0?React.createElement('div',{style:{display:'flex',height:'4px'}},loopChords.map(function(_,i){var isA=i===loopPos;return React.createElement('div',{key:i,style:{flex:1,background:isA&&isLooping?'#34D399':'#1a1a3a',transition:'background 0.2s'}});})):null
     ),
     React.createElement('div',{style:{padding:'10px 14px',maxWidth:'760px',margin:'0 auto'}},
-      tab==='setup'?React.createElement(SetupTab,{lang:lang,currKey:currKey,setCurrKey:function(k){setCurrKey(k);},capo:capo,setCapo:setCapo,style:style,setStyle:setStyle,artist:artist,setArtist:setArtist,loadedProg:loadedProg,setLoadedProg:setLoadedProg,bpm:bpm,setBpm:setBpm,loadPat:loadPat,goSolo:goSolo,G:G,dn:dn}):null,
+      tab==='setup'?React.createElement(SetupTab,{isMobile:isMobile,isTablet:isTablet,lang:lang,currKey:currKey,setCurrKey:function(k){setCurrKey(k);},eKey:eKey,style:style,setStyle:setStyle,artist:artist,setArtist:setArtist,loadedProg:loadedProg,setLoadedProg:setLoadedProg,confirmedProg:confirmedProg,setConfirmedProg:setConfirmedProg,setLoopChords:setLoopChords,setLoopPos:setLoopPos,bpm:bpm,setBpm:setBpm,loadPat:loadPat,goSolo:goSolo,G:G,dn:dn,nColor:nColor,saved:saved,setSaved:setSaved}):null,
       tab==='jam'?React.createElement(JamTab,{lang:lang,eKey:eKey,style:style,setStyle:setStyle,history:history,setHistory:setHistory,sugg:sugg,setSugg:setSugg,patInfo:patInfo,setPatInfo:setPatInfo,pNote:pNote,setPNote:setPNote,pQual:pQual,setPQual:setPQual,showOut:showOut,setShowOut:setShowOut,diatChords:diatChords,detected:detected,isListen:isListen,startMic:startMic,stopMic:stopMic,addChord:addChord,undoChord:undoChord,getSugg:getSugg,goSolo:function(){goSolo(history);},setTab:setTab,slName:slName,setSlName:setSlName,saved:saved,setSaved:setSaved,showSaved2:showSaved2,setShowSaved2:setShowSaved2,loadJam:loadJam,nColor:nColor,dn:dn,SC:{diatonic:'#34D399',borrowed:'#F59E0B',outside:'#F87171'}}):null,
       tab==='lock'?React.createElement(LockTab,{lang:lang,eKey:eKey,style:style,loopChords:loopChords,loopPos:loopPos,bpm:bpm,setBpm:setBpm,bpc:bpc,setBpc:setBpc,isLooping:isLooping,setLooping:setLooping,setTab:setTab,nColor:nColor,dn:dn}):null,
-      tab==='solo'?React.createElement(NeckTab,{lang:lang,eKey:eKey,style:style,loopChords:loopChords,loopPos:loopPos,confirmedProg:confirmedProg,loadedProg:loadedProg,bpm:bpm,setBpm:setBpm,bpc:bpc,setBpc:setBpc,isLooping:isLooping,setLooping:setLooping,nColor:nColor,dn:dn,setTab:setTab}):null,
+      tab==='solo'?React.createElement(NeckTab,{lang:lang,eKey:eKey,setEKey:setCurrKey,style:style,loopChords:loopChords,loopPos:loopPos,confirmedProg:confirmedProg,loadedProg:loadedProg,bpm:bpm,setBpm:setBpm,bpc:bpc,setBpc:setBpc,isLooping:isLooping,setLooping:setLooping,nColor:nColor,dn:dn,setTab:setTab}):null,
       tab==='band'?React.createElement(BandTab,{lang:lang,eKey:eKey,setEKey:setCurrKey,style:style,setStyle:setStyle,loadedProg:loadedProg,setLoadedProg:setLoadedProg,confirmedProg:confirmedProg,setConfirmedProg:setConfirmedProg,bpm:bpm,setBpm:setBpm,bpc:bpc,setBpc:setBpc,saved:bandSaved,setSaved:setBandSaved,slName:slName,setSlName:setSlName,setTab:setTab,setLoopChords:setLoopChords,dn:dn}):null,
       tab==='ref'?React.createElement(ChordRefTab,{lang:lang}):null,
       tab==='ai'?React.createElement(AiChat,{lang:lang,currentKey:eKey,currentStyle:style}):null,
@@ -1563,7 +1694,9 @@ function Lockgroove(){
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Lockgroove));
 }
 if(window._gcReady){ _initApp(); }
-else{ document.addEventListener('gc:ready', _initApp); }
+else{ document.addEventListener('gc:ready', _initApp); }var isMobile=typeof window!=='undefined'&&window.innerWidth<600;
+  var isTablet=typeof window!=='undefined'&&window.innerWidth<900;
+  
 </script>
 <script>
 if('serviceWorker' in navigator){
